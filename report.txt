@@ -1,0 +1,1216 @@
+[94m========================================[0m
+[94mAgentic AI Runtime Audit Suite[0m
+[94m========================================[0m
+
+[92m■━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[92mREPO: vllm[0m
+[92m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+
+[94m[1/2] Running Benchmark Harness Audit...[0m
+
+[94m======================================================================
+Benchmark Harness Audit: vllm
+======================================================================[0m
+
+[94m=== Step 1: Locating Benchmark Directories ===[0m
+  [92m✓[0m vllm/entrypoints/cli/benchmark/
+  [92m✓[0m benchmarks/
+  [92m✓[0m vllm/benchmarks/
+  [92m✓[0m tests/benchmarks/
+  [92m✓[0m rust/src/bench/
+
+[94m=== Step 2: Workload Shape Analysis ===[0m
+  [92m✓[0m multiturn_features: multi.?turn
+      vllm/sampling_params.py:336 → data. In multi-turn agent scenarios, set this to the length of the
+      vllm/tokenizers/deepseek_v4_encoding.py:491 → - Multi-turn conversation context
+      vllm/reasoning/gptoss_reasoning_parser.py:81 → # previous messages in multi-turn conversations.
+      ... (20 total matches)
+  [92m✓[0m multiturn_features: conversation
+      vllm/envs.py:1800 → # Pin the conversation start date injected into the Harmony system
+      benchmarks/benchmark_prefix_caching.py:90 → # Filter out the conversations with less than 2 turns.
+      benchmarks/benchmark_prefix_caching.py:91 → dataset = [data for data in dataset if len(data["conversations"]) >= 2]
+      ... (20 total matches)
+  [92m✓[0m multiturn_features: dialogue
+      tests/entrypoints/openai/chat_completion/test_chat.py:286 → # test multi-turn dialogue
+      tests/entrypoints/multimodal/openai/chat_completion/test_audio.py:121 → # test multi-turn dialogue
+      tests/entrypoints/multimodal/openai/chat_completion/test_audio.py:192 → # test multi-turn dialogue
+      ... (8 total matches)
+  [92m✓[0m multiturn_features: multi.?step
+      vllm/engine/arg_utils.py:1477 → # multi-step scheduling has been removed; corresponding arguments
+      vllm/v1/spec_decode/llm_base_proposer.py:267 → # MiniMax-M3 sparse (lightning-indexer) attention. The multi-step
+      vllm/v1/worker/gpu/spec_decode/autoregressive/speculator.py:266 → self._multi_step_decode(
+      ... (14 total matches)
+  [92m✓[0m multiturn_features: trajectory
+      rust/src/chat/src/renderer/deepseek_v32/fixtures/test_input_search_w_date.json:637 → "content": "[24]  (https://ar5iv.org/abs/2401.13919)\n**viewing lines [0 - 129] 
+  [92m✓[0m multiturn_features: multi.?round
+      tests/v1/core/test_scheduler.py:3742 → def test_ec_connector_with_partial_cache_hit_multi_round(use_kv_connector):
+      docs/features/automatic_prefix_caching.md:21 → - Multi-round conversation, where the user may chat with the application multipl
+  [92m✓[0m multiturn_features: turn.?\d+
+      vllm/scalar_type.py:134 → return 0
+      vllm/collect_env.py:138 → return 127, "", f"Command not found: {cmd_str}"
+      vllm/collect_env.py:245 → # find will return 1 if there are permission errors or if not found
+      ... (20 total matches)
+  [92m✓[0m session_features: session
+      vllm/connections.py:208 → self._sync_client: requests.Session | None = None
+      vllm/connections.py:209 → self._async_client: aiohttp.ClientSession | None = None
+      vllm/connections.py:211 → def get_sync_client(self) -> requests.Session:
+      ... (20 total matches)
+  [92m✓[0m session_features: stateful
+      vllm/model_executor/custom_op.py:38 → these sub-layers following a generalized invocation sequence. Also, it is statef
+      vllm/tool_parsers/step3_tool_parser.py:37 → This version uses a robust, stateful, cursor-based streaming parser and
+      vllm/tool_parsers/poolside_v1_tool_parser.py:62 → # Stateful streaming fields
+      ... (20 total matches)
+  [92m✓[0m session_features: conversation.?id
+      examples/disaggregated/disaggregated_serving/disagg_proxy_multiturn.py:23 → (keyed by conversation_id).
+      examples/disaggregated/disaggregated_serving/disagg_proxy_multiturn.py:34 → Each request must include a ``conversation_id`` field (top-level in
+      examples/disaggregated/disaggregated_serving/disagg_proxy_multiturn.py:38 → ``conversation_id`` is a non-standard extension to the OpenAI Chat
+      ... (20 total matches)
+  [92m✓[0m session_features: thread
+      setup.py:120 → def is_freethreaded():
+      setup.py:186 → super().__init__(name, sources=[], py_limited_api=not is_freethreaded(), **kwa)
+      setup.py:195 → # Determine number of compilation jobs and optionally nvcc compile threads.
+      ... (20 total matches)
+  [92m✓[0m session_features: ctx.?window
+      tests/v1/attention/test_dspark_noncausal_sparse_mla.py:87 → positions, i.e. the contiguous range ``[max(ctx-window,0) .. ctx+q_len-1]``.
+  [92m✓[0m prefix_features: prefix.?shar
+      tests/samplers/test_beam_search.py:24 → #   enable_prefix_caching=False – avoid prefix-sharing side effects
+      tests/v1/simple_kv_offload/test_integration.py:60 → # Use token-id prompts so each filler is unique (no prefix sharing).
+      rust/src/bench/README.md:668 → **Prefix sharing** (random dataset): when `--multi-turn-prefix-global-ratio` or 
+      ... (4 total matches)
+  [92m✓[0m prefix_features: prefix.?pool
+      vllm/v1/attention/backends/mla/sparse_swa.py:225 → # max_num_batched_tokens + window_size - 1. The compressed prefix pool
+  [92m✓[0m prefix_features: prefix.?cache
+      vllm/sampling_params.py:348 → skip_reading_prefix_cache: bool | None = None
+      vllm/sampling_params.py:509 → if self.skip_reading_prefix_cache is None:
+      vllm/sampling_params.py:513 → self.skip_reading_prefix_cache = self.prompt_logprobs is not None
+      ... (20 total matches)
+  [92m✓[0m prefix_features: shared.?prefix
+      vllm/v1/request.py:185 → # Block-aligned token position of a proven shared prefix worth pinning
+      vllm/v1/request.py:187 → # hybrid/Mamba models when a shared prefix is detected (Marconi-style).
+      vllm/v1/request.py:188 → self.shared_prefix_boundary = 0
+      ... (20 total matches)
+  [92m✓[0m prefix_features: kv.?cache.?shar
+      vllm/config/cache.py:179 → NOTE: KV cache sharing is not supported for MRv2 (v2 model runner).
+      vllm/config/parallel.py:128 → the process world size but does not increase the KV-cache shard count."""
+      vllm/v1/worker/utils.py:427 → Sets up KV cache sharing by reusing the allocated KV caches in `kv_caches`
+      ... (20 total matches)
+  [92m✓[0m prefix_features: block.?hash
+      vllm/envs.py:255 → VLLM_KV_EVENTS_USE_INT_BLOCK_HASHES: bool = True
+      vllm/envs.py:1820 → # Represent block hashes in KV cache events as 64-bit integers instead of
+      vllm/envs.py:1822 → "VLLM_KV_EVENTS_USE_INT_BLOCK_HASHES": lambda: bool(
+      ... (20 total matches)
+  [92m✓[0m prefix_features: radix
+      vllm/models/inkling/configs.py:162 → # and a floor of 1 lets the radix tree adopt another request's KV at
+      vllm/model_executor/layers/sparse_attn_indexer.py:42 → RADIX_TOPK_WORKSPACE_SIZE = 1024 * 1024
+      vllm/model_executor/layers/sparse_attn_indexer.py:55 → # Blackwell/Hopper with index_topk in (512, 1024, 2048) (the selector's radix
+      ... (20 total matches)
+  [92m✓[0m prefix_features: preemp
+      vllm/v1/request.py:194 → # The number of times this request has been preempted by the scheduler.
+      vllm/v1/request.py:195 → self.num_preemptions = 0
+      vllm/v1/request.py:351 → PREEMPTED = enum.auto()
+      ... (20 total matches)
+  [92m✓[0m agent_features: agent
+      AGENTS.md:1 → # Agent Instructions for vLLM
+      AGENTS.md:27 → - Pure code-agent PRs are **not allowed**. A human submitter must understand and
+      AGENTS.md:137 → Co-authored-by: Agent Name Here
+      ... (20 total matches)
+  [92m✓[0m agent_features: tool.?call
+      README.md:48 → - Tool calling and reasoning parsers
+      .github/mergify.yml:422 → - name: label-tool-calling
+      .github/mergify.yml:423 → description: Automatically add tool-calling label
+      ... (20 total matches)
+  [92m✓[0m agent_features: function.?call
+      vllm/logger.py:260 → # Log every function call or return
+      vllm/logger.py:294 → def enable_trace_function_call(log_file_path: str, root_dir: str | None = None):
+      vllm/logger.py:296 → Enable tracing of every function call in code under `root_dir`.
+      ... (20 total matches)
+  [92m✓[0m agent_features: act.*observation
+      rust/src/chat/src/renderer/deepseek_v32/fixtures/test_input_search_w_date.json:199 → "content": "[2]  (https://ar5iv.org/html/2510.19631v1)\n**viewing lines [0 - 119
+      rust/src/chat/src/renderer/deepseek_v32/fixtures/test_input_search_w_date.json:692 → "content": "[29]  (https://ar5iv.org/abs/2207.01206)\n**viewing lines [0 - 122] 
+      rust/src/chat/src/renderer/deepseek_v32/fixtures/test_input_search_w_date.json:712 → "content": "[30]  (https://ar5iv.org/pdf/2406.12172)\n**viewing lines [0 - 127] 
+  [92m✓[0m agent_features: react
+      .github/workflows/scripts/run_ci_command.py:173 → def list_reactions(self, comment_id: int) -> list[dict[str, Any]]:
+      .github/workflows/scripts/run_ci_command.py:175 → self._repo_path(f"/issues/comments/{comment_id}/reactions")
+      .github/workflows/scripts/run_ci_command.py:178 → def add_reaction(self, comment_id: int, content: str) -> None:
+      ... (20 total matches)
+  [92m✓[0m agent_features: agentic
+      tests/parser/engine/trace_builder.py:147 → description="Tool call immediately after tool response (agentic flow)",
+      rust/src/chat/src/renderer/deepseek_v32/fixtures/test_input_search_w_date.json:155 → "content": "[1] 搜索智能体 基准测试 (Search_Results/搜索智能体 基准测试)\n**viewing lines [0 - 33]
+      rust/src/chat/src/renderer/deepseek_v32/fixtures/test_input_search_w_date.json:391 → "content": "[5] WebArena benchmark (Search_Results/WebArena benchmark)\n**viewin
+      ... (8 total matches)
+
+[94m=== Step 3: Dataset Backends ===[0m
+  [92m•[0m dataset arg:
+      --dataset-name random --random-input-len 40000 \\
+      compatible with ``CustomDataset`` (``--dataset-name custom``), by
+      --dataset-name is not 'random', 'random-mm', or 'random-rerank'.",
+      args.seed, causing every run with --dataset-name custom to pick the
+      "--prefix-len will be ignored since --dataset-name\
+      ... (23 total)
+  [92m•[0m Dataset class:
+      class RandomMultiModalDataset(RandomDataset):
+      class PrefixRepetitionRandomDataset(BenchmarkDataset):
+      class MultiModalConversationDataset(HuggingFaceDataset):
+      class GSM8KDataset(HuggingFaceDataset):
+      class HuggingFaceDataset(BenchmarkDataset):
+      ... (27 total)
+  [92m•[0m Dataset name:
+      if mode == "random":
+      r"HfApi|HfFileSystem|hf_hub_download|snapshot_download"
+      "hf_config": {
+      tool_call_id_type: str = "random",
+      'modes are "random", "tile", and "interleave". '
+      ... (29 total)
+  [92m•[0m Multi-turn dataset:
+      converted: list[ConversationMessage] = []
+      return conversation
+      conversation = _consolidate_system_messages(conversation)
+      for msg in conversation:
+      conversation = _convert_developer_to_system(conversation)
+      ... (19 total)
+  [92m•[0m Benchmark dataset:
+      search_pattern = os.path.join(cache_dir, f"nixl*{NIXL_VERSION}*.whl")
+      choices=["container", "code_interpreter", "web_search_preview"],
+      if wheel.get("package_name") == "vllm" and arch in wheel.get(
+      torch_root = spec.submodule_search_locations[0]
+      ROCm AITER package is supported and enabled on gfx9 archs.
+      ... (29 total)
+
+[94m=== Step 4: Request Arrival Model ===[0m
+  [92m•[0m Poisson/QPS (iid single-turn):
+      benchmarks/benchmark_serving_structured_output.py:15
+      benchmarks/benchmark_serving_structured_output.py:305
+      ... (20 total)
+  [92m•[0m Potential multi-turn (check code):
+      vllm/sampling_params.py:336
+      vllm/envs.py:1800
+      ... (20 total)
+  [92m•[0m Burst pattern:
+      benchmarks/benchmark_serving_structured_output.py:306
+      benchmarks/benchmark_serving_structured_output.py:310
+      ... (20 total)
+  [92m•[0m Dependency-driven:
+      setup.py:1094
+      tools/report_build_time_ninja.py:127
+      ... (20 total)
+
+[94m=== VERDICT ===[0m
+
+  Multi-turn capable:     [92mYES
+  Session-aware:          [92mYES
+  Prefix-sharing aware:   [92mYES
+  Agent/tool-call aware:  [92mYES
+
+  [92m★★★★★ Full agentic support detected[0m
+
+  [94m→ This is a 'full agentic'  harness[0m
+
+
+[94m=== Raw Findings Summary ===[0m
+  harness_locations: 5 items found
+  multiturn_features: 85 items found
+  session_features: 81 items found
+  prefix_features: 125 items found
+  agent_features: 91 items found
+  datasets: 147 items found
+  arrival_models: 4 items found
+
+[94m[2/2] Running CI Configuration Audit...[0m
+
+[94m======================================================================
+CI Configuration Audit: vllm
+======================================================================[0m
+[93mKey principle: CI is truth. If it's not tested daily, assume it doesn't work.[0m
+
+[94m=== Step 1: Locating CI Configurations ===[0m
+  [92m✓[0m .github/workflows/
+      └─ macos-smoke-test.yml
+      └─ issue_autolabel.yml
+      └─ new_pr_bot.yml
+      └─ add_label_automerge.yml
+      └─ stale.yml
+      └─ run-ci-command.yml
+      └─ pre-commit.yml
+  [92m✓[0m .buildkite/
+      └─ ci_config_rocm.yaml
+      └─ test-pipeline.yaml
+      └─ ci_config_intel.yaml
+      └─ test-amd.yaml
+      └─ release-pipeline.yaml
+      └─ ci_config.yaml
+      └─ samplers_intel.yaml
+      └─ basic_correctness.yaml
+      └─ model_runner_v2_intel.yaml
+      └─ benchmarks_intel.yaml
+      └─ models_multimodal_intel.yaml
+      └─ test-intel.yaml
+      └─ misc_intel.yaml
+      └─ kernels_intel.yaml
+      └─ model_executor_intel.yaml
+      └─ expert_parallelism_intel.yaml
+      └─ lora_intel.yaml
+      └─ engine_intel.yaml
+      └─ quantization.yaml
+      └─ models_distributed_intel.yaml
+      └─ image_build.yaml
+      └─ basic_correctness.yaml
+      └─ ray_compat.yaml
+      └─ models_distributed.yaml
+      └─ models_language.yaml
+      └─ e2e_integration.yaml
+      └─ expert_parallelism.yaml
+      └─ lora.yaml
+      └─ models_basic.yaml
+      └─ docker.yaml
+      └─ torch_abi.yaml
+      └─ cuda.yaml
+      └─ distributed.yaml
+      └─ fault_tolerance.yaml
+      └─ plugins.yaml
+      └─ kernels.yaml
+      └─ model_executor.yaml
+      └─ weight_loading.yaml
+      └─ pytorch.yaml
+      └─ models_multimodal.yaml
+      └─ compile.yaml
+      └─ attention.yaml
+      └─ benchmarks.yaml
+      └─ disaggregated.yaml
+      └─ samplers.yaml
+      └─ entrypoints.yaml
+      └─ rust_frontend.yaml
+      └─ engine.yaml
+      └─ rust_frontend_cargo.yaml
+      └─ quantization.yaml
+      └─ spec_decode.yaml
+      └─ lm_eval.yaml
+      └─ misc.yaml
+      └─ model_runner_v2.yaml
+      └─ intel.yaml
+      └─ ascend_npu.yaml
+      └─ cpu.yaml
+      └─ amd.yaml
+      └─ gh200.yaml
+      └─ Mixtral-8x7B-Instruct-v0.1.yaml
+      └─ Qwen2.5-VL-3B-Instruct-FP8-dynamic.yaml
+      └─ Mixtral-8x22B-Instruct-v0.1-FP8-Dynamic.yaml
+      └─ Meta-Llama-3.2-1B-Instruct-FP8-compressed-tensors.yaml
+      └─ Meta-Llama-4-Maverick-17B-128E-Instruct-FP8.yaml
+      └─ Meta-Llama-3-70B-Instruct-FBGEMM-nonuniform.yaml
+      └─ Meta-Llama-3-70B-Instruct.yaml
+      └─ NVIDIA-Nemotron-3-Nano-30B-A3B-FP8.yaml
+      └─ Meta-Llama-3-8B-Instruct-FBGEMM-nonuniform.yaml
+      └─ Meta-Llama-3-8B-Instruct-FP8-compressed-tensors.yaml
+      └─ Qwen2.5-VL-7B-Instruct.yaml
+      └─ DeepSeek-V2-Lite-Chat.yaml
+      └─ Minitron-4B-Base-FP8.yaml
+      └─ Mixtral-8x7B-Instruct-v0.1-FP8.yaml
+      └─ Meta-Llama-3.2-1B-Instruct-INT8-compressed-tensors.yaml
+      └─ Qwen2-57B-A14-Instruct.yaml
+      └─ Meta-Llama-3-8B-Instruct-INT8-compressed-tensors-asym.yaml
+      └─ Meta-Llama-3-8B-QQQ.yaml
+      └─ Qwen2.5-1.5B-Instruct.yaml
+      └─ NVIDIA-Nemotron-3-Nano-30B-A3B-BF16.yaml
+      └─ Meta-Llama-3-8B-Instruct-FP8.yaml
+      └─ Meta-Llama-3-8B-Instruct-INT8-compressed-tensors.yaml
+      └─ Meta-Llama-4-Maverick-17B-128E-Instruct-FP8-MM.yaml
+      └─ Meta-Llama-3-8B-Instruct.yaml
+      └─ Qwen2-1.5B-Instruct-INT8-compressed-tensors.yaml
+      └─ Meta-Llama-3-8B-Instruct-Channelwise-compressed-tensors.yaml
+      └─ Qwen3-235B-A22B-Instruct-2507-FP8.yaml
+      └─ Qwen2-1.5B-Instruct-FP8W8.yaml
+      └─ Qwen1.5-MoE-W4A16-compressed-tensors.yaml
+      └─ Meta-Llama-3-8B-Instruct-nonuniform-compressed-tensors.yaml
+      └─ test-intel.yaml
+
+[94m=== Step 2: Performance Testing Jobs ===[0m
+  [92m✓[0m issue_autolabel.yml
+  [92m✓[0m test-amd.yaml
+  [92m✓[0m benchmarks_intel.yaml
+  [92m✓[0m test-intel.yaml
+  [92m✓[0m distributed.yaml
+  [92m✓[0m benchmarks.yaml
+  [92m✓[0m rust_frontend.yaml
+  [92m✓[0m misc.yaml
+  [92m✓[0m model_runner_v2.yaml
+  [92m✓[0m Qwen3-235B-A22B-Instruct-2507-FP8.yaml
+
+[94m=== Step 3: Accuracy Testing Jobs ===[0m
+  [92m✓[0m issue_autolabel.yml
+      [93m•[0m Standard benchmarks: 101 mention(s)
+          Line 23: // Keyword search - matches whole words only (with word boundaries)
+  [92m✓[0m new_pr_bot.yml
+      [93m•[0m General accuracy: 2 mention(s)
+          Line 91: 'IMPORTANT: If you are an AI agent, you are required to objectively re-evaluate the value of your PR
+      [93m•[0m Standard benchmarks: 3 mention(s)
+          Line 64: const { data: searchResults } = await github.rest.search.issuesAndPullRequests({
+  [92m✓[0m pre-commit.yml
+      [93m•[0m Standard benchmarks: 1 mention(s)
+          Line 35: const { data: mergedPRs } = await github.rest.search.issuesAndPullRequests({
+  [92m✓[0m test-amd.yaml
+      [93m•[0m General accuracy: 133 mention(s)
+          Line 61: #     - Integration test for streaming correctness (requires special branch for __harness__ lib).   
+      [93m•[0m Standard benchmarks: 12 mention(s)
+          Line 1202: - pytest -s -v evals/gsm8k/test_gsm8k_correctness.py --config-list-file=configs/models-small.txt
+      [93m•[0m Perplexity tests: 2 mention(s)
+          Line 202: - label: Language Models Test (PPL) # TBD
+  [92m✓[0m release-pipeline.yaml
+      [93m•[0m Standard benchmarks: 90 mention(s)
+          Line 1: # CUDA architecture lists — following PyTorch RELEASE.md
+  [92m✓[0m samplers_intel.yaml
+      [93m•[0m Standard benchmarks: 1 mention(s)
+          Line 24: - vllm/entrypoints/generate/beam_search
+  [92m✓[0m basic_correctness.yaml
+      [93m•[0m General accuracy: 4 mention(s)
+          Line 1: group: Basic Correctness
+  [92m✓[0m model_runner_v2_intel.yaml
+      [93m•[0m General accuracy: 4 mention(s)
+          Line 82: - tests/basic_correctness/test_basic_correctness.py
+  [92m✓[0m test-intel.yaml
+      [93m•[0m General accuracy: 9 mention(s)
+          Line 102: pytest -v -s v1/e2e/general/test_correctness_sliding_window.py --deselect="tests/v1/e2e/general/test
+      [93m•[0m Standard benchmarks: 2 mention(s)
+          Line 46: python3 examples/basic/offline_inference/generate.py --model ibm-research/PowerMoE-3b --block-size 6
+  [92m✓[0m misc_intel.yaml
+      [93m•[0m General accuracy: 8 mention(s)
+          Line 26: - tests/entrypoints/openai/correctness/test_lmeval.py
+  [92m✓[0m lora_intel.yaml
+      [93m•[0m General accuracy: 1 mention(s)
+          Line 133: pytest -v -s lora/test_quant_model.py --deselect="tests/lora/test_quant_model.py::test_quant_model_l
+  [92m✓[0m image_build.yaml
+      [93m•[0m General accuracy: 1 mention(s)
+          Line 34: # its build correctness is reviewed at the Dockerfile level. Wrapper
+  [92m✓[0m basic_correctness.yaml
+      [93m•[0m General accuracy: 11 mention(s)
+          Line 1: group: Basic Correctness
+  [92m✓[0m models_distributed.yaml
+      [93m•[0m General accuracy: 2 mention(s)
+          Line 13: - tests/basic_correctness/
+  [92m✓[0m models_language.yaml
+      [93m•[0m General accuracy: 1 mention(s)
+          Line 85: # correctness test on L4 until its H200 output matches the Transformers reference.
+      [93m•[0m Perplexity tests: 2 mention(s)
+          Line 111: - label: Language Models Test (PPL)
+  [92m✓[0m e2e_integration.yaml
+      [93m•[0m General accuracy: 10 mention(s)
+          Line 5: - label: DeepSeek V2-Lite Sync EPLB Accuracy (4xH100)
+  [92m✓[0m distributed.yaml
+      [93m•[0m General accuracy: 9 mention(s)
+          Line 71: - tests/compile/fullgraph/test_basic_correctness.py
+  [92m✓[0m kernels.yaml
+      [93m•[0m Standard benchmarks: 1 mention(s)
+          Line 52: - tests/kernels/test_top_k_per_row.py # it runs on Blackwell too - some kernels have arch-specific o
+  [92m✓[0m pytorch.yaml
+      [93m•[0m Standard benchmarks: 1 mention(s)
+          Line 150: # those SM90 cases skip while the architecture-compatible cases still run.
+  [92m✓[0m models_multimodal.yaml
+      [93m•[0m General accuracy: 7 mention(s)
+          Line 104: - label: Multi-Modal Accuracy Eval (Small Models) # 50min
+  [92m✓[0m compile.yaml
+      [93m•[0m General accuracy: 13 mention(s)
+          Line 5: - label: Sequence Parallel Correctness Tests (2 GPUs)
+  [92m✓[0m disaggregated.yaml
+      [93m•[0m General accuracy: 26 mention(s)
+          Line 5: - label: Distributed NixlConnector PD accuracy (4 GPUs)
+  [92m✓[0m samplers.yaml
+      [93m•[0m Standard benchmarks: 2 mention(s)
+          Line 14: - vllm/entrypoints/generate/beam_search
+  [92m✓[0m entrypoints.yaml
+      [93m•[0m General accuracy: 6 mention(s)
+          Line 72: - pytest -v -s entrypoints/openai --ignore=entrypoints/openai/completion --ignore=entrypoints/openai
+  [92m✓[0m rust_frontend.yaml
+      [93m•[0m General accuracy: 7 mention(s)
+          Line 69: - label: Rust Frontend Core Correctness
+  [92m✓[0m engine.yaml
+      [93m•[0m General accuracy: 1 mention(s)
+          Line 152: - pytest -v -s v1/e2e/spec_decode/test_spec_decode.py -k "eagle_correctness_heavy"
+  [92m✓[0m spec_decode.yaml
+      [93m•[0m General accuracy: 8 mention(s)
+          Line 14: - pytest -v -s v1/e2e/spec_decode -k "eagle_correctness"
+  [92m✓[0m lm_eval.yaml
+      [93m•[0m General accuracy: 126 mention(s)
+          Line 1: group: LM Eval
+      [93m•[0m Standard benchmarks: 68 mention(s)
+          Line 14: - pytest -s -v evals/gsm8k/test_gsm8k_correctness.py --config-list-file=configs/models-small.txt
+  [92m✓[0m misc.yaml
+      [93m•[0m General accuracy: 8 mention(s)
+          Line 99: - tests/entrypoints/openai/correctness/test_lmeval.py
+  [92m✓[0m model_runner_v2.yaml
+      [93m•[0m General accuracy: 4 mention(s)
+          Line 72: - tests/basic_correctness/test_basic_correctness.py
+  [92m✓[0m amd.yaml
+      [93m•[0m Standard benchmarks: 2 mention(s)
+          Line 46: PYTORCH_ROCM_ARCH: "gfx90a;gfx942;gfx950"
+  [92m✓[0m Mixtral-8x7B-Instruct-v0.1.yaml
+      [93m•[0m General accuracy: 2 mention(s)
+          Line 2: # bash .buildkite/lm-eval-harness/run-lm-eval-gsm-hf-baseline.sh -m neuralmagic/Mixtral-8x7B-Instruc
+      [93m•[0m Standard benchmarks: 1 mention(s)
+          Line 5: - name: "gsm8k"
+  [92m✓[0m Qwen2.5-VL-3B-Instruct-FP8-dynamic.yaml
+      [93m•[0m General accuracy: 2 mention(s)
+          Line 2: # bash .buildkite/lm-eval-harness/run-lm-eval-gsm-vllm-baseline.sh -m RedHatAI/Qwen2.5-VL-3B-Instruc
+      [93m•[0m Standard benchmarks: 2 mention(s)
+          Line 4: required_gpu_arch:
+  [92m✓[0m Mixtral-8x22B-Instruct-v0.1-FP8-Dynamic.yaml
+      [93m•[0m General accuracy: 1 mention(s)
+          Line 2: # bash ./run-lm-eval-gsm-vllm-baseline.sh -m neuralmagic/Mixtral-8x22B-Instruct-v0.1-FP8-dynamic -b 
+      [93m•[0m Standard benchmarks: 1 mention(s)
+          Line 5: - name: "gsm8k"
+  [92m✓[0m Meta-Llama-3.2-1B-Instruct-FP8-compressed-tensors.yaml
+      [93m•[0m General accuracy: 2 mention(s)
+          Line 1: # bash .buildkite/lm-eval-harness/run-lm-eval-gsm-vllm-baseline.sh -m RedHatAI/Llama-3.2-1B-Instruct
+      [93m•[0m Standard benchmarks: 1 mention(s)
+          Line 4: - name: "gsm8k"
+  [92m✓[0m Meta-Llama-4-Maverick-17B-128E-Instruct-FP8.yaml
+      [93m•[0m General accuracy: 2 mention(s)
+          Line 2: # bash .buildkite/lm-eval-harness/run-lm-eval-mmlupro-vllm-baseline.sh -m meta-llama/Llama-4-Maveric
+      [93m•[0m Standard benchmarks: 3 mention(s)
+          Line 2: # bash .buildkite/lm-eval-harness/run-lm-eval-mmlupro-vllm-baseline.sh -m meta-llama/Llama-4-Maveric
+  [92m✓[0m Meta-Llama-3-70B-Instruct-FBGEMM-nonuniform.yaml
+      [93m•[0m General accuracy: 2 mention(s)
+          Line 2: # bash .buildkite/lm-eval-harness/run-lm-eval-gsm-hf-baseline.sh -m nm-testing/Meta-Llama-3-70B-Inst
+      [93m•[0m Standard benchmarks: 1 mention(s)
+          Line 5: - name: "gsm8k"
+  [92m✓[0m Meta-Llama-3-70B-Instruct.yaml
+      [93m•[0m General accuracy: 2 mention(s)
+          Line 2: # bash .buildkite/lm-eval-harness/run-lm-eval-gsm-hf-baseline.sh -m meta-llama/Meta-Llama-3-70B-Inst
+      [93m•[0m Standard benchmarks: 1 mention(s)
+          Line 5: - name: "gsm8k"
+  [92m✓[0m NVIDIA-Nemotron-3-Nano-30B-A3B-FP8.yaml
+      [93m•[0m Standard benchmarks: 1 mention(s)
+          Line 3: - name: "gsm8k"
+  [92m✓[0m Meta-Llama-3-8B-Instruct-FBGEMM-nonuniform.yaml
+      [93m•[0m General accuracy: 2 mention(s)
+          Line 2: # bash .buildkite/lm-eval-harness/run-lm-eval-gsm-vllm-baseline.sh -m nm-testing/Meta-Llama-3-8B-Ins
+      [93m•[0m Standard benchmarks: 1 mention(s)
+          Line 5: - name: "gsm8k"
+  [92m✓[0m Meta-Llama-3-8B-Instruct-FP8-compressed-tensors.yaml
+      [93m•[0m General accuracy: 2 mention(s)
+          Line 2: # bash .buildkite/lm-eval-harness/run-lm-eval-gsm-vllm-baseline.sh -m nm-testing/Meta-Llama-3-8B-FP8
+      [93m•[0m Standard benchmarks: 1 mention(s)
+          Line 5: - name: "gsm8k"
+  [92m✓[0m Qwen2.5-VL-7B-Instruct.yaml
+      [93m•[0m General accuracy: 3 mention(s)
+          Line 2: # bash .buildkite/lm-eval-harness/run-lm-eval-chartqa-vllm-vlm-baseline.sh -m Qwen/Qwen2.5-VL-7B-Ins
+  [92m✓[0m DeepSeek-V2-Lite-Chat.yaml
+      [93m•[0m General accuracy: 1 mention(s)
+          Line 2: # bash ./run-lm-eval-gsm-vllm-baseline.sh -m deepseek-ai/DeepSeek-V2-Lite-Chat -b "auto" -l 1000 -f 
+      [93m•[0m Standard benchmarks: 1 mention(s)
+          Line 5: - name: "gsm8k"
+  [92m✓[0m Minitron-4B-Base-FP8.yaml
+      [93m•[0m General accuracy: 2 mention(s)
+          Line 2: # bash .buildkite/lm-eval-harness/run-lm-eval-gsm-vllm-baseline.sh -m mgoin/Minitron-4B-Base-FP8 -b 
+      [93m•[0m Standard benchmarks: 1 mention(s)
+          Line 5: - name: "gsm8k"
+  [92m✓[0m Mixtral-8x7B-Instruct-v0.1-FP8.yaml
+      [93m•[0m General accuracy: 1 mention(s)
+          Line 2: # bash ./run-lm-eval-gsm-vllm-baseline.sh -m neuralmagic/Mixtral-8x7B-Instruct-v0.1-FP8 -b "auto" -l
+      [93m•[0m Standard benchmarks: 1 mention(s)
+          Line 5: - name: "gsm8k"
+  [92m✓[0m Meta-Llama-3.2-1B-Instruct-INT8-compressed-tensors.yaml
+      [93m•[0m General accuracy: 2 mention(s)
+          Line 2: # bash .buildkite/lm-eval-harness/run-lm-eval-gsm-vllm-baseline.sh -m neuralmagic/Llama-3.2-1B-Instr
+      [93m•[0m Standard benchmarks: 1 mention(s)
+          Line 5: - name: "gsm8k"
+  [92m✓[0m Qwen2-57B-A14-Instruct.yaml
+      [93m•[0m General accuracy: 1 mention(s)
+          Line 2: # bash ./run-lm-eval-gsm-vllm-baseline.sh -m Qwen/Qwen2-57B-A14B-Instruct -b "auto" -l 250 -f 5 -t 4
+      [93m•[0m Standard benchmarks: 1 mention(s)
+          Line 5: - name: "gsm8k"
+  [92m✓[0m Meta-Llama-3-8B-Instruct-INT8-compressed-tensors-asym.yaml
+      [93m•[0m General accuracy: 2 mention(s)
+          Line 2: # bash .buildkite/lm-eval-harness/run-lm-eval-gsm-vllm-baseline.sh -m nm-testing/Meta-Llama-3-8B-Ins
+      [93m•[0m Standard benchmarks: 1 mention(s)
+          Line 5: - name: "gsm8k"
+  [92m✓[0m Meta-Llama-3-8B-QQQ.yaml
+      [93m•[0m General accuracy: 2 mention(s)
+          Line 2: # bash .buildkite/lm-eval-harness/run-lm-eval-gsm-vllm-baseline.sh -m HandH1998/QQQ-Llama-3-8b-g128 
+      [93m•[0m Standard benchmarks: 1 mention(s)
+          Line 5: - name: "gsm8k"
+  [92m✓[0m Qwen2.5-1.5B-Instruct.yaml
+      [93m•[0m General accuracy: 2 mention(s)
+          Line 1: # bash .buildkite/lm-eval-harness/run-lm-eval-gsm-vllm-baseline.sh -m Qwen/Qwen2.5-1.5B-Instruct -b 
+      [93m•[0m Standard benchmarks: 1 mention(s)
+          Line 4: - name: "gsm8k"
+  [92m✓[0m NVIDIA-Nemotron-3-Nano-30B-A3B-BF16.yaml
+      [93m•[0m Standard benchmarks: 1 mention(s)
+          Line 3: - name: "gsm8k"
+  [92m✓[0m Meta-Llama-3-8B-Instruct-FP8.yaml
+      [93m•[0m General accuracy: 2 mention(s)
+          Line 2: # bash .buildkite/lm-eval-harness/run-lm-eval-gsm-vllm-baseline.sh -m neuralmagic/Meta-Llama-3-8B-In
+      [93m•[0m Standard benchmarks: 1 mention(s)
+          Line 5: - name: "gsm8k"
+  [92m✓[0m Meta-Llama-3-8B-Instruct-INT8-compressed-tensors.yaml
+      [93m•[0m General accuracy: 2 mention(s)
+          Line 2: # bash .buildkite/lm-eval-harness/run-lm-eval-gsm-vllm-baseline.sh -m nm-testing/Meta-Llama-3-8B-Ins
+      [93m•[0m Standard benchmarks: 1 mention(s)
+          Line 5: - name: "gsm8k"
+  [92m✓[0m Meta-Llama-4-Maverick-17B-128E-Instruct-FP8-MM.yaml
+      [93m•[0m General accuracy: 3 mention(s)
+          Line 2: # bash .buildkite/lm-eval-harness/run-lm-eval-chartqa-vllm-vlm-baseline.sh -m meta-llama/Llama-4-Mav
+  [92m✓[0m Meta-Llama-3-8B-Instruct.yaml
+      [93m•[0m General accuracy: 2 mention(s)
+          Line 2: # bash .buildkite/lm-eval-harness/run-lm-eval-gsm-hf-baseline.sh -m meta-llama/Meta-Llama-3-8B-Instr
+      [93m•[0m Standard benchmarks: 1 mention(s)
+          Line 5: - name: "gsm8k"
+  [92m✓[0m Qwen2-1.5B-Instruct-INT8-compressed-tensors.yaml
+      [93m•[0m General accuracy: 2 mention(s)
+          Line 2: # bash .buildkite/lm-eval-harness/run-lm-eval-gsm-vllm-baseline.sh -m neuralmagic/Qwen2-1.5B-Instruc
+      [93m•[0m Standard benchmarks: 1 mention(s)
+          Line 5: - name: "gsm8k"
+  [92m✓[0m Meta-Llama-3-8B-Instruct-Channelwise-compressed-tensors.yaml
+      [93m•[0m General accuracy: 2 mention(s)
+          Line 2: # bash .buildkite/lm-eval-harness/run-lm-eval-gsm-vllm-baseline.sh -m nm-testing/Meta-Llama-3-8B-Ins
+      [93m•[0m Standard benchmarks: 1 mention(s)
+          Line 5: - name: "gsm8k"
+  [92m✓[0m Qwen3-235B-A22B-Instruct-2507-FP8.yaml
+      [93m•[0m General accuracy: 2 mention(s)
+          Line 12: enforce_eager: false # we use false to speed up the eval process
+      [93m•[0m Standard benchmarks: 2 mention(s)
+          Line 2: required_gpu_arch:
+  [92m✓[0m Qwen2-1.5B-Instruct-FP8W8.yaml
+      [93m•[0m General accuracy: 2 mention(s)
+          Line 2: # bash .buildkite/lm-eval-harness/run-lm-eval-gsm-vllm-baseline.sh -m nm-testing/Qwen2-1.5B-Instruct
+      [93m•[0m Standard benchmarks: 1 mention(s)
+          Line 5: - name: "gsm8k"
+  [92m✓[0m Qwen1.5-MoE-W4A16-compressed-tensors.yaml
+      [93m•[0m General accuracy: 2 mention(s)
+          Line 2: # bash .buildkite/lm-eval-harness/run-lm-eval-gsm-vllm-baseline.sh -m nm-testing/Qwen1.5-MoE-A2.7B-C
+      [93m•[0m Standard benchmarks: 1 mention(s)
+          Line 5: - name: "gsm8k"
+  [92m✓[0m Meta-Llama-3-8B-Instruct-nonuniform-compressed-tensors.yaml
+      [93m•[0m General accuracy: 2 mention(s)
+          Line 2: # bash .buildkite/lm-eval-harness/run-lm-eval-gsm-vllm-baseline.sh -m nm-testing/Meta-Llama-3-8B-Ins
+      [93m•[0m Standard benchmarks: 1 mention(s)
+          Line 5: - name: "gsm8k"
+
+[94m=== Step 4: Agentic & Tool-Calling Coverage ===[0m
+  [92m✓ Agentic tasks found:[0m
+      test-amd.yaml: tool.?call
+      rust_frontend.yaml: tool.?call
+
+[94m=== Step 5: Optimization-Specific Coverage ===[0m
+  Optimization coverage:
+    [93m•[0m quantization: issue_autolabel.yml, test-amd.yaml, test-intel.yaml, model_executor_intel.yaml, quantization.yaml, plugins.yaml, kernels.yaml, compile.yaml, quantization.yaml, lm_eval.yaml, misc.yaml, cpu.yaml, Meta-Llama-3.2-1B-Instruct-INT8-compressed-tensors.yaml, Qwen2-1.5B-Instruct-INT8-compressed-tensors.yaml, Qwen1.5-MoE-W4A16-compressed-tensors.yaml
+    [93m•[0m prefix_caching: test-amd.yaml, model_runner_v2_intel.yaml, test-intel.yaml, disaggregated.yaml, misc.yaml, model_runner_v2.yaml
+    [93m•[0m kv_quantization: test-amd.yaml, quantization.yaml, disaggregated.yaml
+    [93m•[0m speculative_decoding: test-amd.yaml, model_runner_v2_intel.yaml, test-intel.yaml, engine_intel.yaml, expert_parallelism.yaml, disaggregated.yaml, engine.yaml, spec_decode.yaml, misc.yaml, model_runner_v2.yaml
+
+[94m=== Step 6: Configuration Diversity ===[0m
+
+[94m=== VERDICT ===[0m
+
+  Performance CI:                 [91mNO[0m
+  Accuracy/Eval CI:               [92mYES
+  Agentic/Tool-call CI:           [92mYES
+  Optimization-specific CI:       [92mYES
+
+
+
+[94m=== Raw Summary ===[0m
+  Perf jobs: 0
+  Accuracy jobs: 93
+  Agentic tasks found: 2
+  Optimization coverage: 4 dimensions
+
+
+[92m■━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[92mREPO: sglang[0m
+[92m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+
+[94m[1/2] Running Benchmark Harness Audit...[0m
+
+[94m======================================================================
+Benchmark Harness Audit: sglang
+======================================================================[0m
+
+[94m=== Step 1: Locating Benchmark Directories ===[0m
+  [92m✓[0m benchmark/
+  [92m✓[0m sgl-kernel/benchmark/
+  [92m✓[0m test/registered/kernels/benchmark/
+  [92m✓[0m python/sglang/benchmark/
+  [92m✓[0m python/sglang/kernels/jit/benchmark/
+  [92m✓[0m sgl-model-gateway/e2e_test/benchmarks/
+  [92m✓[0m docs_new/cookbook/base/benchmarks/
+  [92m✓[0m python/sglang/multimodal_gen/benchmarks/
+  [92m✓[0m test/registered/unit/bench/
+  [92m✓[0m rust/sglang-mm/bench/
+
+[94m=== Step 2: Workload Shape Analysis ===[0m
+  [92m✓[0m multiturn_features: multi.?turn
+      sgl-model-gateway/README.md:468 → - Supports `/v1/responses` background jobs with cancellation, deletion, and list
+      sgl-model-gateway/README.md:470 → - Chat history, agentic multi-turn `/v1/responses`, and the native MCP client (S
+      test/lm_eval_configs/NVIDIA-Nemotron-3-Nano-30B-A3B-NVFP4.yaml:13 → fewshot_as_multiturn: true
+      ... (20 total matches)
+  [92m✓[0m multiturn_features: conversation
+      sgl-model-gateway/README.md:10 → - Conversation, response, and chat-history connectors that centralize state at t
+      sgl-model-gateway/README.md:24 → - OpenAI router that proxies OpenAI-style requests, responses, and conversations
+      sgl-model-gateway/README.md:34 → - OpenAI-compatible `/v1/chat/completions`, `/v1/responses`, `/v1/conversations`
+      ... (20 total matches)
+  [92m✓[0m multiturn_features: dialogue
+      test/registered/unit/entrypoints/anthropic/test_serving.py:1314 → preserved verbatim and the dialogue order is untouched. Guards the
+      test/registered/ascend/interface/test_npu_matched_stop.py:17 → Ensure that you thoroughly describe every scene, character's motivations, and th
+      test/manual/eval/longbench_v2_evaluation.md:19 → 4. **Long-Dialogue History**: Understanding long conversation histories
+      ... (7 total matches)
+  [92m✓[0m multiturn_features: multi.?step
+      .claude/skills/cookbook-add-model/SKILL.md:77 → **Interactive, multi-step workflow. Collect inputs incrementally — don't ask for
+      test/registered/unit/model_executor/test_forward_metadata_plan_record.py:98 → # Mapped, not ignored: a no-op would silently re-plan multi-step metadata.
+      test/registered/unit/managers/test_hisparse_unit.py:444 → """Multi-step swap-in: second call hits cached tokens, only
+      ... (20 total matches)
+  [92m✓[0m multiturn_features: trajectory
+      python/sglang/multimodal_gen/tools/compare_diffusion_trajectory_similarity.py:1 → """Compare diffusion BF16 and quantized runs via trajectory-latent similarity.
+      python/sglang/multimodal_gen/tools/compare_diffusion_trajectory_similarity.py:4 → captures intermediate denoising latents via `return_trajectory_latents`, and
+      python/sglang/multimodal_gen/tools/compare_diffusion_trajectory_similarity.py:14 → python -m sglang.multimodal_gen.tools.compare_diffusion_trajectory_similarity \
+      ... (20 total matches)
+  [92m✓[0m multiturn_features: multi.?round
+      test/manual/test_deepseek_chat_templates.py:116 → """Test that tool arguments as string are used as-is (multi-round case)."""
+      test/manual/test_deepseek_chat_templates.py:117 → # This tests the multi-round function calling case from issue #11700
+      python/sglang/benchmark/datasets/mooncake.py:58 → with support for multi-round sessions.
+      ... (4 total matches)
+  [92m✓[0m multiturn_features: turn.?\d+
+      .github/audit_permission.py:131 → return 0
+      .github/audit_permission.py:133 → return 1
+      .github/audit_permission.py:135 → return 3
+      ... (20 total matches)
+  [92m✓[0m session_features: session
+      sgl-model-gateway/README.md:1040 → # Option 1: Set environment variable (per-session)
+      test/run_suite.py:58 → # to pass on mi325 (quant fp8kv-triton, sessions streaming-session
+      .github/workflows/pr-benchmark-rust.yml:184 → generate_section "Manual Policy (Sticky Sessions)" "manual-policy-results" 100
+      ... (20 total matches)
+  [92m✓[0m session_features: stateful
+      docker/k8s-sglang-distributed-sts.yaml:4 → kind: StatefulSet
+      test/registered/dllm/test_dllm_fdfo_joint_threshold.py:27 → forward shapes, so a correct stateful (``dllm_algo_state``) carry must produce
+      test/registered/core/test_srt_endpoint.py:407 → def run_stateful_custom_logit_processor(
+      ... (20 total matches)
+  [92m✓[0m session_features: conversation.?id
+      sgl-model-gateway/e2e_test/responses/test_basic_crud.py:231 → conversation_id = create_resp.id
+      sgl-model-gateway/e2e_test/responses/test_basic_crud.py:234 → get_resp = client.conversations.retrieve(conversation_id=conversation_id)
+      sgl-model-gateway/e2e_test/responses/test_basic_crud.py:239 → assert get_resp.id == conversation_id
+      ... (20 total matches)
+  [92m✓[0m session_features: thread
+      .github/labeler.yml:119 → # Moore Threads specific
+      .github/labeler.yml:120 → mthreads:
+      .github/labeler.yml:123 → - '**/*mthreads*'
+      ... (20 total matches)
+  [92m✓[0m session_features: ctx.?window
+      python/sglang/kernels/ops/attention/flash_attn/cute/interface.py:1624 → ctx.window_size = window_size
+      python/sglang/kernels/ops/attention/flash_attn/cute/interface.py:1741 → ctx.window_size = window_size
+  [92m✓[0m prefix_features: prefix.?shar
+      test/registered/unit/mem_cache/test_unified_radix_cache_bench.py:92 → """Generate *num_seqs* token sequences with tree-like prefix sharing.
+      python/sglang/benchmark/serving.py:2606 → help="Send routing key in requests via X-SMG-Routing-Key header. Requests with t
+      python/sglang/kernels/ops/attention/dsa/dequant_k_cache.py:187 → # num_tokens can exceed kv_cache_size due to prefix sharing (multiple seqs share
+      ... (13 total matches)
+  [92m✓[0m prefix_features: prefix.?pool
+      sgl-model-gateway/bindings/python/src/sglang_router/router_args.py:527 → f"--{prefix}pool-idle-timeout-secs",
+      sgl-model-gateway/bindings/python/src/sglang_router/router_args.py:539 → f"--{prefix}pool-max-idle-per-host",
+      python/sglang/test/simple_eval_mixed_prefix_gsm8k.py:63 → pool_size = self._setup_prefix_pool(all_lines, num_shots)
+      ... (5 total matches)
+  [92m✓[0m prefix_features: prefix.?cache
+      .claude/skills/llm-torch-profiler-analysis/SKILL.md:127 → | `Qwen/Qwen3-8B` | `2x H100`, TP=2 | prefill `4090->1`, decode `1->2048`, warmu
+      .claude/skills/llm-torch-profiler-analysis/SKILL.md:128 → | `mistralai/Mistral-7B-Instruct-v0.3` | `2x H100`, TP=2 | prefill `4090->1`, de
+      sgl-model-gateway/bindings/python/src/sglang_router/router_args.py:305 → f"--{prefix}cache-threshold",
+      ... (20 total matches)
+  [92m✓[0m prefix_features: shared.?prefix
+      scripts/playground/router/tree.py:17 → def shared_prefix_length(s1, s2):
+      scripts/playground/router/tree.py:70 → shared_len = shared_prefix_length(s[curr_idx:], matched_node.text)
+      scripts/playground/router/tree.py:122 → shared_len = shared_prefix_length(s[curr_idx:], matched_node.text)
+      ... (20 total matches)
+  [92m✓[0m prefix_features: kv.?cache.?shar
+      python/sglang/srt/mem_cache/storage/flexkv/flexkv_comm.py:4 → sync leader's process). Every other rank in the same KV-cache-sharing
+  [92m✓[0m prefix_features: block.?hash
+      .github/workflows/pr-test-sgl-router.yml:251 → # Regenerate the cross-impl block-hash parity fixture and fail if it
+      test/manual/test_kv_events.py:117 → self.assertIsInstance(event.block_hashes, list)
+      test/manual/test_kv_events.py:119 → len(event.block_hashes), 1, "Should have one hash per block"
+      ... (20 total matches)
+  [92m✓[0m prefix_features: radix
+      README.md:56 → - [2024/01] SGLang provides up to **5x faster inference** with RadixAttention ([
+      README.md:66 → - **Fast Runtime**: Provides efficient serving with RadixAttention for prefix ca
+      README.md:70 → - **RL & Post-Training Backbone**: SGLang is a proven rollout backend used for t
+      ... (20 total matches)
+  [92m✓[0m prefix_features: preemp
+      test/registered/models/test_zaya.py:27 → # the estimated time is set generously to keep the CI scheduler from preempting
+      test/registered/unit/test_server_args_cli_metadata.py:40 → "--disable-priority-preemption",
+      test/registered/unit/test_server_args_cli_metadata.py:44 → "--priority-scheduling-preemption-threshold",
+      ... (20 total matches)
+  [92m✓[0m agent_features: agent
+      README.md:92 → Long-term active SGLang contributors are eligible for coding agent sponsorship, 
+      sgl-model-gateway/README.md:468 → - Supports `/v1/responses` background jobs with cancellation, deletion, and list
+      sgl-model-gateway/README.md:470 → - Chat history, agentic multi-turn `/v1/responses`, and the native MCP client (S
+      ... (20 total matches)
+  [92m✓[0m agent_features: tool.?call
+      sgl-model-gateway/README.md:8 → - Industry-first gRPC pipeline with native Rust tokenization, reasoning, and too
+      sgl-model-gateway/README.md:36 → - **Parser endpoints**: Reasoning parser (`/parse/reasoning`) and function call 
+      sgl-model-gateway/README.md:218 → --tool-call-parser json
+      ... (20 total matches)
+  [92m✓[0m agent_features: function.?call
+      sgl-model-gateway/README.md:36 → - **Parser endpoints**: Reasoning parser (`/parse/reasoning`) and function call 
+      sgl-model-gateway/README.md:595 → The gateway provides admin endpoints for parsing reasoning content and function 
+      sgl-model-gateway/README.md:600 → | `POST /parse/function_call` | `POST` | Parse function/tool calls from text.   
+      ... (20 total matches)
+  [92m✓[0m agent_features: act.*observation
+      python/sglang/multimodal_gen/benchmarks/bench_pi05_openpi.py:840 → actions = policy._sample_actions(sample_key_or_device, observation, **sample_kwa
+      python/sglang/multimodal_gen/configs/sample/vla.py:206 → help="Number of candidate actions to generate per observation.",
+      python/sglang/multimodal_gen/runtime/entrypoints/vla/protocol.py:212 → def _action_request_to_observation(payload: dict[str, Any]) -> dict[str, Any]:
+      ... (7 total matches)
+  [92m✓[0m agent_features: react
+      .github/workflows/slash-command-handler.yml:9 → pull-requests: write # Required to add labels and reactions
+      .github/workflows/slash-command-handler.yml:11 → issues: write        # Required for comment reactions in some contexts
+      .claude/skills/cookbook-add-model/SKILL.md:46 → │ (config passed as React prop)
+      ... (20 total matches)
+  [92m✓[0m agent_features: agentic
+      sgl-model-gateway/README.md:468 → - Supports `/v1/responses` background jobs with cancellation, deletion, and list
+      sgl-model-gateway/README.md:470 → - Chat history, agentic multi-turn `/v1/responses`, and the native MCP client (S
+      .claude/skills/llm-torch-profiler-analysis/SKILL.md:425 → workload-separated live capture when possible; if only a mixed agentic trace is
+      ... (20 total matches)
+
+[94m=== Step 3: Dataset Backends ===[0m
+  [92m•[0m dataset arg:
+      dataset="gsm8k",
+      accuracy_params=AccuracyTestParams(dataset="gsm8k", baseline_accuracy=0.9),
+      accuracy_params=AccuracyTestParams(dataset="gsm8k", baseline_accuracy=0.88),
+      "--dataset-name",
+      accuracy_params=AccuracyTestParams(dataset="gsm8k", baseline_accuracy=0.85),
+      ... (11 total)
+  [92m•[0m Dataset class:
+      class VBenchDataset(BaseDataset):
+      class CustomDataset(BaseDataset):
+      class AgenticTraceDataset(BaseDataset):
+      class ImageDataset(BaseDataset):
+      class MMMUDataset(BaseDataset):
+      ... (16 total)
+  [92m•[0m Dataset name:
+      assert policy_from_str("random") == PolicyType.Random
+      _env_vars["HF_TOKEN"] = os.environ["HF_TOKEN"]
+      """Random interleaving of image/text tokens (stress test)."""
+      logger.info("HF relevance scores: %s", scores_hf)
+      if router_args.policy != "random":
+      ... (22 total)
+  [92m•[0m Multi-turn dataset:
+      # Delete conversation
+      update_resp = client.conversations.update(
+      """Test deleting conversation."""
+      def test_update_conversation(self, setup_backend):
+      create_resp = client.conversations.create()
+      ... (25 total)
+  [92m•[0m Benchmark dataset:
+      if re.search(r"\+(rocm|musa)", path_name):
+      text search) so the moved body's own same-named calls on a different receiver are
+      filename_match = re.search(r">([^<]+\.whl)</a>", link)
+      def search_repo_item(
+      "architectures": ["DeepseekV3ForCausalLMNextN"],
+      ... (28 total)
+
+[94m=== Step 4: Request Arrival Model ===[0m
+  [92m•[0m Poisson/QPS (iid single-turn):
+      scripts/playground/bench_speculative.py:107
+      test/registered/tokenizer/test_multi_detokenizer.py:61
+      ... (20 total)
+  [92m•[0m Potential multi-turn (check code):
+      test/run_suite.py:58
+      sgl-model-gateway/e2e_test/conftest.py:76
+      ... (20 total)
+  [92m•[0m Burst pattern:
+      sgl-model-gateway/e2e_test/benchmarks/test_regular_perf.py:26
+      sgl-model-gateway/e2e_test/benchmarks/test_pd_perf.py:27
+      ... (13 total)
+  [92m•[0m Dependency-driven:
+      .claude/skills/mechanical-refactor-verify/scripts/tests/proof_generator/test_script_and_diff.py:45
+      .claude/skills/llm-torch-profiler-analysis/scripts/analyze_llm_torch_profile.py:565
+      ... (20 total)
+
+[94m=== VERDICT ===[0m
+
+  Multi-turn capable:     [92mYES
+  Session-aware:          [92mYES
+  Prefix-sharing aware:   [92mYES
+  Agent/tool-call aware:  [92mYES
+
+  [92m★★★★★ Full agentic support detected[0m
+
+  [94m→ This is a 'full agentic'  harness[0m
+
+
+[94m=== Raw Findings Summary ===[0m
+  harness_locations: 10 items found
+  multiturn_features: 111 items found
+  session_features: 82 items found
+  prefix_features: 119 items found
+  agent_features: 107 items found
+  datasets: 138 items found
+  arrival_models: 4 items found
+
+[94m[2/2] Running CI Configuration Audit...[0m
+
+[94m======================================================================
+CI Configuration Audit: sglang
+======================================================================[0m
+[93mKey principle: CI is truth. If it's not tested daily, assume it doesn't work.[0m
+
+[94m=== Step 1: Locating CI Configurations ===[0m
+  [92m✓[0m .github/workflows/
+      └─ nightly-amd-mi355x-disagg.yml
+      └─ open-pr-copy-to-oss.yml
+      └─ release-pypi-pr.yml
+      └─ _docker-cleanup-nightly.yml
+      └─ pr-benchmark-rust.yml
+      └─ pr-test-xeon.yml
+      └─ ci-coverage-overview.yml
+      └─ pr-test-multimodal-gen.yml
+      └─ release-pypi.yml
+      └─ pr-test-amd.yml
+      └─ stress-test.yml
+      └─ pr-test-rust.yml
+      └─ amd-ci-job-monitor.yml
+      └─ xpu-ci-job-monitor.yml
+      └─ release-docker-amd.yml
+      └─ pr-test-amd-extra.yml
+      └─ release-branch-cut.yml
+      └─ nightly-72-gpu-gb200.yml
+      └─ release-docker-npu-nightly.yml
+      └─ lint.yml
+      └─ list-active-pr-runs.yml
+      └─ release-docker-intel-xpu-nightly.yml
+      └─ amd-aiter-scout.yml
+      └─ bot-cherry-pick.yml
+      └─ ci-auto-bisect.yml
+      └─ ci-failure-monitor.yml
+      └─ release-docker-amd-miles-rocm700-nightly.yml
+      └─ nightly-test-npu.yml
+      └─ release-docker.yml
+      └─ release-tag.yml
+      └─ release-docker-npu.yml
+      └─ pr-test-musa.yml
+      └─ rerun-test.yml
+      └─ diffusion-ci-gt-gen.yml
+      └─ pr-test-xpu.yml
+      └─ patch-docker-dev.yml
+      └─ weekly-update-est-time.yml
+      └─ nightly-test-amd.yml
+      └─ release-docker-amd-miles-rocm720-nightly.yml
+      └─ weekly-test-nvidia.yml
+      └─ pr-test-npu.yml
+      └─ pr-test-jit-kernel.yml
+      └─ bot-bump-kernel-version-to-sglang.yml
+      └─ auto-tune.yml
+      └─ release-whl-deepgemm.yml
+      └─ nightly-test-musa.yml
+      └─ nightly-test-amd-rocm720.yml
+      └─ nightly-test-npu-e2e-single-node.yml
+      └─ pr-test-extra.yml
+      └─ release-docker-gateway.yml
+      └─ bot-bump-sglang-version.yml
+      └─ diffusion-ci-gt-gen-npu.yml
+      └─ nightly-link-check.yml
+      └─ release-pypi-nightly.yml
+      └─ release-docker-amd-nightly.yml
+      └─ release-docker-amd-rocm7_15-nightly.yml
+      └─ pr-test-arm64.yml
+      └─ slash-command-handler.yml
+      └─ bot-bump-kernel-version.yml
+      └─ open-pr-copy-from-oss.yml
+      └─ pr-test-amd-rocm720.yml
+      └─ ci-model-inventory.yml
+      └─ labeler.yml
+      └─ runner-utilization.yml
+      └─ nightly-release-gateway.yml
+      └─ pr-test-mlx.yml
+      └─ full-test-npu.yml
+      └─ trivy-scan-dev.yml
+      └─ release-whl-kernel.yml
+      └─ pr-states.yml
+      └─ pr-gate.yml
+      └─ pr-test.yml
+      └─ nightly-test-intel.yml
+      └─ _pr-test-check-changes.yml
+      └─ nightly-test-nvidia.yml
+      └─ release-docker-runtime.yml
+      └─ _pr-test-stage.yml
+      └─ _docker-build-and-publish.yml
+      └─ bot-bump-docs-version.yml
+      └─ _pr-test-sgl-kernel-build.yml
+      └─ sync-lmsys-sglang-blogs.yml
+      └─ nightly-test-amd-miles-rocm720.yml
+      └─ release-docker-xeon.yml
+      └─ nightly-test-npu-e2e-multi-node.yml
+      └─ nightly-experimental-sgl-router-docker.yml
+      └─ cancel-pr-workflows-on-close.yml
+      └─ close-inactive-issues.yml
+      └─ pr-test-sgl-router.yml
+      └─ bot-bump-flashinfer-version.yml
+      └─ release-docker-dev.yml
+      └─ release-docker-amd-rocm720-nightly.yml
+      └─ pr-test-sgl-kernel.yml
+      └─ release-pypi-gateway.yml
+      └─ cancel-unfinished-pr-tests.yml
+      └─ retag-docker.yml
+
+[94m=== Step 2: Performance Testing Jobs ===[0m
+  [92m✓[0m nightly-amd-mi355x-disagg.yml
+      Job: [93mnightly-mi355x-benchmark[0m
+        └─ # launch_mi355x.sh names the allocation
+#   mi355x-ci-<RUNNER_NAME>-<GITHUB_RUN_ID>-<config>
+# Here 
+        └─ bash scripts/ci/slurm/launch_mi355x.sh
+  [92m✓[0m pr-benchmark-rust.yml
+      Job: [93mbenchmark-compile-check[0m
+        └─ bash scripts/ci/cuda/ci_install_gateway_dependencies.sh
+
+        └─ source "$HOME/.cargo/env"
+cd sgl-model-gateway/
+cargo check --benches
+
+      Job: [93mbenchmark[0m
+        └─ bash scripts/ci/cuda/ci_install_gateway_dependencies.sh
+
+        └─ source "$HOME/.cargo/env"
+cd sgl-model-gateway/
+if command -v sccache &> /dev/null; then
+  echo "Tes
+      Job: [93mbenchmark-summary[0m
+        └─ generate_section() {
+  local title="$1" dir_name="$2" lines="${3:-100}"
+  local dir="benchmark-resul
+  [92m✓[0m pr-test-amd.yml
+      Job: [93mjit-kernel-benchmark-test-amd[0m
+        └─ bash scripts/ci/amd/ensure_vram_clear.sh rocm
+        └─ bash scripts/ci/amd/amd_ci_start_container.sh
+  [92m✓[0m pr-test-rust.yml
+      Job: [93msummarize-benchmarks[0m
+        └─ python3 sgl-model-gateway/e2e_test/benchmarks/summarize.py .
+  [92m✓[0m pr-test-amd-extra.yml
+  [92m✓[0m nightly-72-gpu-gb200.yml
+      Job: [93mnightly-gb200-benchmark[0m
+        └─ STALE_JOBS=$(squeue --noheader --format="%i %j" | grep "${RUNNER_NAME}" | awk '{print $1}')
+if [ -n 
+        └─ bash scripts/ci/slurm/launch_gb200.sh
+  [92m✓[0m lint.yml
+  [92m✓[0m nightly-test-npu.yml
+  [92m✓[0m rerun-test.yml
+  [92m✓[0m nightly-test-amd.yml
+      Job: [93mnightly-perf-2-gpu-text[0m
+        └─ bash scripts/ci/amd/ensure_vram_clear.sh rocm
+        └─ touch github_summary.md
+bash scripts/ci/amd/amd_ci_start_container.sh
+
+      Job: [93mnightly-perf-2-gpu-vlm[0m
+        └─ bash scripts/ci/amd/ensure_vram_clear.sh rocm
+        └─ touch github_summary.md
+bash scripts/ci/amd/amd_ci_start_container.sh
+
+      Job: [93mnightly-perf-8-gpu-mi35x-deepseek-v32-basic[0m
+        └─ bash scripts/ci/amd/ensure_vram_clear.sh rocm
+        └─ touch github_summary.md
+bash scripts/ci/amd/amd_ci_start_container.sh
+
+      Job: [93mnightly-perf-8-gpu-mi35x-deepseek-v32-mtp[0m
+        └─ bash scripts/ci/amd/ensure_vram_clear.sh rocm
+        └─ touch github_summary.md
+bash scripts/ci/amd/amd_ci_start_container.sh
+
+  [92m✓[0m pr-test-npu.yml
+  [92m✓[0m pr-test-jit-kernel.yml
+      Job: [93mjit-kernel-benchmark-test[0m
+        └─ ls -alh sgl-kernel/dist || true
+rm -rf sgl-kernel/dist/* || true
+
+        └─ CUSTOM_BUILD_SGL_KERNEL=${{ inputs.sgl_kernel }} bash scripts/ci/cuda/ci_install_dependency.sh diffu
+  [92m✓[0m nightly-test-amd-rocm720.yml
+      Job: [93mnightly-perf-2-gpu-text-rocm720[0m
+        └─ bash scripts/ci/amd/ensure_vram_clear.sh rocm
+        └─ touch github_summary.md
+bash scripts/ci/amd/amd_ci_start_container.sh --rocm-version rocm720
+
+      Job: [93mnightly-perf-2-gpu-vlm-rocm720[0m
+        └─ bash scripts/ci/amd/ensure_vram_clear.sh rocm
+        └─ touch github_summary.md
+bash scripts/ci/amd/amd_ci_start_container.sh --rocm-version rocm720
+
+      Job: [93mnightly-perf-8-gpu-mi35x-deepseek-v32-basic-rocm720[0m
+        └─ bash scripts/ci/amd/ensure_vram_clear.sh rocm
+        └─ touch github_summary.md
+bash scripts/ci/amd/amd_ci_start_container.sh --rocm-version rocm720
+
+      Job: [93mnightly-perf-8-gpu-mi35x-deepseek-v32-mtp-rocm720[0m
+        └─ bash scripts/ci/amd/ensure_vram_clear.sh rocm
+        └─ touch github_summary.md
+bash scripts/ci/amd/amd_ci_start_container.sh --rocm-version rocm720
+
+  [92m✓[0m nightly-test-npu-e2e-single-node.yml
+  [92m✓[0m diffusion-ci-gt-gen-npu.yml
+  [92m✓[0m release-docker-amd-nightly.yml
+  [92m✓[0m pr-test-amd-rocm720.yml
+      Job: [93mjit-kernel-benchmark-test-amd-rocm720[0m
+        └─ bash scripts/ci/amd/ensure_vram_clear.sh rocm
+        └─ bash scripts/ci/amd/amd_ci_start_container.sh --rocm-version rocm720
+  [92m✓[0m pr-test-mlx.yml
+  [92m✓[0m full-test-npu.yml
+  [92m✓[0m nightly-test-intel.yml
+  [92m✓[0m _pr-test-check-changes.yml
+  [92m✓[0m nightly-test-nvidia.yml
+      Job: [93mnightly-test-text-perf-2-gpu-h100[0m
+        └─ bash scripts/ci/cuda/ci_install_dependency.sh
+
+        └─ cd test
+rm -rf performance_profiles_text_models/
+python3 run_suite.py --hw cuda --suite nightly-perf
+      Job: [93mnightly-test-vlm-perf-2-gpu-h100[0m
+        └─ bash scripts/ci/cuda/ci_install_dependency.sh
+
+        └─ cd test
+rm -rf performance_profiles_vlms/
+python3 run_suite.py --hw cuda --suite nightly-perf-vlm-2-
+      Job: [93mnightly-test-perf-4-gpu-b200[0m
+        └─ bash scripts/ci/cuda/ci_install_dependency.sh
+
+        └─ cd test
+python3 run_suite.py --hw cuda --suite nightly-4-gpu-b200 --nightly --continue-on-error --ti
+  [92m✓[0m nightly-test-npu-e2e-multi-node.yml
+  [92m✓[0m pr-test-sgl-router.yml
+  [92m✓[0m pr-test-sgl-kernel.yml
+      Job: [93msgl-kernel-benchmark-test[0m
+        └─ ls -alh sgl-kernel/dist || true
+rm -rf sgl-kernel/dist/* || true
+
+        └─ CUSTOM_BUILD_SGL_KERNEL=${{inputs.sgl_kernel}} bash scripts/ci/cuda/ci_install_dependency.sh
+
+
+[94m=== Step 3: Accuracy Testing Jobs ===[0m
+  [92m✓[0m pr-test-multimodal-gen.yml
+      [93m•[0m General accuracy: 4 mention(s)
+          Line 339: multimodal-gen-component-accuracy:
+  [92m✓[0m release-pypi.yml
+      [93m•[0m Standard benchmarks: 8 mention(s)
+          Line 20: arch: [x86_64, aarch64]
+  [92m✓[0m pr-test-amd.yml
+      [93m•[0m Standard benchmarks: 30 mention(s)
+          Line 63: runner_arch:
+  [92m✓[0m pr-test-rust.yml
+      [93m•[0m Standard benchmarks: 3 mention(s)
+          Line 200: # `docker run gvenzl/oracle-xe` + `docker run shoofio/brave-search-mcp-sse`
+  [92m✓[0m release-docker-amd.yml
+      [93m•[0m Standard benchmarks: 14 mention(s)
+          Line 20: gpu_arch: ['gfx942', 'gfx950']
+  [92m✓[0m pr-test-amd-extra.yml
+      [93m•[0m Standard benchmarks: 8 mention(s)
+          Line 31: runner_arch:
+  [92m✓[0m release-docker-npu-nightly.yml
+      [93m•[0m Standard benchmarks: 3 mention(s)
+          Line 61: # Enable Docker multi-architecture build environment
+  [92m✓[0m nightly-test-npu.yml
+      [93m•[0m General accuracy: 11 mention(s)
+          Line 145: test_case: test/registered/ascend/accuracy/qwen3_6_35b_a3b/test_npu_qwen3_6_35b_a3b_1p_aime26.py
+      [93m•[0m Standard benchmarks: 29 mention(s)
+          Line 116: runner: linux-aarch64-a2-4
+  [92m✓[0m release-docker-npu.yml
+      [93m•[0m Standard benchmarks: 3 mention(s)
+          Line 70: # Enable Docker multi-architecture build environment
+  [92m✓[0m nightly-test-amd.yml
+      [93m•[0m General accuracy: 91 mention(s)
+          Line 35: - nightly-accuracy-2-gpu
+      [93m•[0m Standard benchmarks: 1 mention(s)
+          Line 296: - name: Accuracy Test MI35x (2-GPU GLM-5.1-MXFP4 GSM8K)
+  [92m✓[0m pr-test-npu.yml
+      [93m•[0m Standard benchmarks: 21 mention(s)
+          Line 96: runs-on: linux-aarch64-a2-1
+  [92m✓[0m release-whl-deepgemm.yml
+      [93m•[0m Standard benchmarks: 31 mention(s)
+          Line 43: arch: [x86_64, aarch64]
+  [92m✓[0m nightly-test-amd-rocm720.yml
+      [93m•[0m General accuracy: 93 mention(s)
+          Line 35: - nightly-accuracy-2-gpu-rocm720
+      [93m•[0m Standard benchmarks: 4 mention(s)
+          Line 294: - name: Accuracy Test MI35x ROCm 7.2 (2-GPU GLM-5.1-MXFP4 GSM8K)
+  [92m✓[0m nightly-test-npu-e2e-single-node.yml
+      [93m•[0m General accuracy: 1 mention(s)
+          Line 14: description: perf or accuracy
+      [93m•[0m Standard benchmarks: 2 mention(s)
+          Line 9: default: linux-aarch64-a3-16
+  [92m✓[0m diffusion-ci-gt-gen-npu.yml
+      [93m•[0m Standard benchmarks: 4 mention(s)
+          Line 91: runs-on: linux-aarch64-a3-2
+  [92m✓[0m release-docker-amd-nightly.yml
+      [93m•[0m Standard benchmarks: 17 mention(s)
+          Line 23: gpu_arch: ['gfx942', 'gfx950']
+  [92m✓[0m release-docker-amd-rocm7_15-nightly.yml
+      [93m•[0m Standard benchmarks: 8 mention(s)
+          Line 32: gpu_arch: ['gfx1250-rocm7_15']
+  [92m✓[0m pr-test-arm64.yml
+      [93m•[0m Standard benchmarks: 1 mention(s)
+          Line 99: bash -c "source /opt/.venv/bin/activate && python3 -c 'import platform; import torch; import sgl_ker
+  [92m✓[0m pr-test-amd-rocm720.yml
+      [93m•[0m General accuracy: 14 mention(s)
+          Line 9: # Temporarily disabled: every-6-hours dsv4 accuracy run. Daily '30 17 * * *'
+      [93m•[0m Standard benchmarks: 4 mention(s)
+          Line 1279: # --skip-test-time-deps: GSM8K + bench_one_batch_server don't need lmms-eval / human-eval.
+  [92m✓[0m nightly-release-gateway.yml
+      [93m•[0m Standard benchmarks: 20 mention(s)
+          Line 19: target: [x86_64, aarch64]
+  [92m✓[0m full-test-npu.yml
+      [93m•[0m General accuracy: 16 mention(s)
+          Line 136: pip install protobuf==6.31.1 zss pre-commit wandb>=0.16.0 tenacity==8.3.0 loguru openpyxl latex2symp
+      [93m•[0m Standard benchmarks: 12 mention(s)
+          Line 88: runs-on: linux-aarch64-a3-2
+  [92m✓[0m release-whl-kernel.yml
+      [93m•[0m Standard benchmarks: 22 mention(s)
+          Line 48: arch: [x86_64, aarch64]
+  [92m✓[0m pr-test.yml
+      [93m•[0m Standard benchmarks: 2 mention(s)
+          Line 206: arch_suffix: '-aarch64'
+  [92m✓[0m nightly-test-intel.yml
+      [93m•[0m General accuracy: 3 mention(s)
+          Line 67: docker exec ci_sglang_xpu /opt/venv/bin/python3 -m pip install --no-cache-dir "lm-eval==0.4.9"
+  [92m✓[0m nightly-test-nvidia.yml
+      [93m•[0m General accuracy: 14 mention(s)
+          Line 20: - 'nightly-test-text-accuracy-2-gpu-h100'
+      [93m•[0m Standard benchmarks: 4 mention(s)
+          Line 250: --search-dir test/performance_profiles_8_gpu \
+  [92m✓[0m _docker-build-and-publish.yml
+      [93m•[0m Standard benchmarks: 3 mention(s)
+          Line 1: name: Build and Publish Multi-Arch Docker Images
+  [92m✓[0m _pr-test-sgl-kernel-build.yml
+      [93m•[0m Standard benchmarks: 5 mention(s)
+          Line 4: # architecture / runner pool. Called twice from pr-test.yml: once for the
+  [92m✓[0m nightly-test-npu-e2e-multi-node.yml
+      [93m•[0m General accuracy: 2 mention(s)
+          Line 14: description: perf or accuracy
+  [92m✓[0m nightly-experimental-sgl-router-docker.yml
+      [93m•[0m Standard benchmarks: 10 mention(s)
+          Line 17: # Build each arch natively (no QEMU emulation) and push the image by digest.
+  [92m✓[0m release-docker-amd-rocm720-nightly.yml
+      [93m•[0m Standard benchmarks: 17 mention(s)
+          Line 33: gpu_arch: ['gfx942-rocm720', 'gfx950-rocm720']
+  [92m✓[0m release-pypi-gateway.yml
+      [93m•[0m Standard benchmarks: 20 mention(s)
+          Line 19: target: [x86_64, aarch64]
+
+[94m=== Step 4: Agentic & Tool-Calling Coverage ===[0m
+  [92m✓ Agentic tasks found:[0m
+      ci-coverage-overview.yml: function.?call
+      slash-command-handler.yml: react
+
+[94m=== Step 5: Optimization-Specific Coverage ===[0m
+  Optimization coverage:
+    [93m•[0m speculative_decoding: ci-coverage-overview.yml, pr-test-amd.yml, pr-test-musa.yml, nightly-test-musa.yml, pr-test-amd-rocm720.yml
+    [93m•[0m quantization: nightly-test-amd.yml, nightly-test-amd-rocm720.yml
+
+[94m=== Step 6: Configuration Diversity ===[0m
+
+[94m=== VERDICT ===[0m
+
+  Performance CI:                 [92mYES
+  Accuracy/Eval CI:               [92mYES
+  Agentic/Tool-call CI:           [92mYES
+  Optimization-specific CI:       [92mYES
+
+
+
+[94m=== Raw Summary ===[0m
+  Perf jobs: 21
+  Accuracy jobs: 38
+  Agentic tasks found: 2
+  Optimization coverage: 2 dimensions
+
+
+[94m========================================[0m
+[92m✓ Audit complete[0m
+[94m========================================[0m
