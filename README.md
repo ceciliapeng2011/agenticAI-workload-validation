@@ -57,6 +57,18 @@ agenticAI/
 
 **最终结论**：六个系统里，没有一个把"多轮会话 + 工具调用 + 主流性能优化组合开启"作为一个整体，纳入过日常自动化的 CI 精度回归。
 
+## 延伸产出一：能力金字塔 × 系统严谨度 二维坐标图
+
+[capability_x_systems_rigor_matrix.md](capability_x_systems_rigor_matrix.md) 把"MMLU→MT-Bench→Tool-Calling→SWE-bench"这条常见的模型能力演进链，和六次调查发现的"系统严谨度"补成一根正交轴，插入 τ-bench 作为 Tool-Calling 与 SWE-bench 之间的独立一级，再把六个系统的实际坐标标进这张二维图。核心结论：能力金字塔爬得越高的系统（TRT-LLM 摸到 SWE-bench），系统严谨度往往越低；系统严谨度做得最扎实的系统（OpenVINO GenAI），能力级别却停在最基础的一档——右上象限（高能力 × 高系统严谨度）目前完全空白，而 τ-bench 的终态匹配 + pass^k 方法论恰好是可以拿来填补这块空白的可移植组件。文档还记录了纵轴的一处修正：系统严谨度要按负载形状分别打分，同一个系统在"正常负载"和"对抗性/极端负载"（如恶意 schema 压测约束解码引擎）上的严谨度可以完全脱钩——六个系统里只有 vLLM 沾边，且两处相关代码从未被拼在一起。
+
+## 延伸产出二：五个能力基准的详细介绍与对比
+
+[benchmark_landscape_comparison.md](benchmark_landscape_comparison.md) 把二维图横轴上简化成箭头的几个节点（MMLU、MT-Bench、Tool-Calling、τ-bench、SWE-bench）逐个展开成详细档案，并插入 MTR-Bench（自动化判定的交互式推理基准，区别于 MT-Bench 的主观 LLM 打分）和 BFCL 的完整版本演进史（v1 纯格式匹配 → v4 联网/记忆/格式鲁棒性的真agentic能力）。核心结论和整个调查系列一致：这五个基准全部是纯模型能力评测，没有一个的官方协议考虑过"分数是在什么 Runtime 优化配置下跑出来的"。
+
+## 延伸产出三：一份"真实有效"的测试设计方案
+
+[agentic_test_design_proposal.md](agentic_test_design_proposal.md) 在六份调查报告的基础上往前走一步——不只是指出"没人做对"，而是把六家各自做对的那一小块（TRT-LLM 的真两轮编排、llama.cpp 的终态精确判定、OpenVINO GenAI 的性能-精度联合断言、SGLang 的日志级缓存命中核验、Ollama 的模型广度、τ-bench 的 pass^k 稳定性验证）拼成一套可以直接落地的测试蓝图，包含任务集设计、配置矩阵设计、CI 分层落地策略，以及逐项标注"借鉴自谁、还缺什么"。本质上，这份方案就是在填补上面那张二维图里空白的右上象限。
+
 ## 审计脚本（辅助工具）
 
 三个脚本对应调查的前两层取证——快速定位、留给人工深挖的起点，不能替代打开代码验证：

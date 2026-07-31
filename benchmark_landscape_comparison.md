@@ -1,0 +1,110 @@
+# Agentic AI Workload 基准测试详解与对比：MMLU / MT-Bench / MTR-Bench / BFCL / τ-bench
+
+> 
+> 承接 `capability_x_systems_rigor_matrix.md` 的横轴（能力金字塔）——本文档把横轴上简化成一个箭头的几个节点，逐个展开成详细档案，并补充横轴上原本缺失的两级（MTR-Bench、BFCL 的完整版本演进史），最后回答一个和前面所有调查一脉相承的问题：**这些基准测试有没有一个考虑过"系统/Runtime 层优化是否影响这些能力"？**
+
+## 一、逐个基准详细介绍
+
+### 1. MMLU（Massive Multitask Language Understanding）
+
+- **提出**：Hendrycks et al., 2020
+- **形式**：57 个学科（STEM、人文、社科、职业等），四选一客观选择题，零样本/少样本测准确率
+- **考察什么**：静态知识背诵 + 基础推理，单轮、无上下文依赖
+- **评测方法**：精确匹配（选项对不对），完全客观、可自动化
+- **现状：已饱和**——前沿模型普遍超过 90% 准确率，区分度大幅下降；且题目本身长期公开，[大量证据显示原题或高度相似文本已经出现在 Common Crawl 训练语料里](https://www.digitalapplied.com/blog/llm-benchmark-methodology-2026-contamination-leaderboard-guide)，"背过"和"推理出来"难以区分。选择题格式本身也测不出生成式/解释性能力
+- **继任者**：MMLU-Pro（1.2 万题、10 个选项而非 4 个、降低蒙对概率、题目更难），但[也已经开始重演饱和轨迹](https://intuitionlabs.ai/articles/mmlu-pro-ai-benchmark-explained)（前沿模型已逼近 90%），行业正在转向 LiveBench、Humanity's Last Exam 这类持续更新/超高难度基准
+
+### 2. MT-Bench
+
+- **提出**：Zheng et al., 2023，《[Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena](https://arxiv.org/abs/2306.05685)》
+- **形式**：80 组两轮对话问题，覆盖 8 个能力类别（写作、角色扮演、信息抽取、推理、数学、代码、知识 I/STEM、知识 II/人文社科），每类别 10 题
+- **考察什么**：**对话连贯性和指令遵循**——"第二轮有没有顺着第一轮的意思往下接"，是主观质量判断，不是客观任务正确性
+- **评测方法**：LLM-as-judge（用 GPT-4 当裁判），两种模式：成对比较（哪个回答更好）或单答打分（1-10 分，依据"有用性/相关性/准确性/深度/清晰度"综合打分）。论文验证了 GPT-4 判分和人类判分的一致率能到 [80%-85%](https://www.emergentmind.com/topics/mt-bench-benchmarks)，接近人与人之间的一致率
+- **配套基准**：Chatbot Arena（众包实时对战，没有固定题库，覆盖更广但不可控）
+- **局限**：只有两轮、题库仅 80 题，偏小——催生了 MT-Bench-101（更细粒度的分层能力分类）和 MT-Bench++（扩展到 8 轮对话）
+- **关键定位**：这是"能力金字塔"横轴上唯一一个用**主观 LLM 打分**而非客观判定的基准，衡量的是"顺不顺"，不是"对不对"
+
+### 3. MTR-Bench（Multi-Turn Reasoning Benchmark）
+
+- **提出**：Li, Bao et al., 2025（中国科学技术大学 / 阿里巴巴 / 新加坡国立大学），《[MTR-Bench: A Comprehensive Benchmark for Multi-Turn Reasoning Evaluation](https://arxiv.org/abs/2505.17123)》
+- **形式**：**4 大类、40 个任务、3600 个实例**，每个任务标定 3 个难度等级，任务需要和"环境"做多轮交互才能完成——不是对话质量评测，是**交互式推理正确性**评测
+- **评测方法**：全自动化的 **Generator-Monitor-Evaluator 框架**——数据集构造和模型评测全流程自动化，不需要人工标注/打分（这是它和 MT-Bench 最本质的区别：MT-Bench 靠 LLM 裁判做主观判断，MTR-Bench 靠环境自动判定客观对错）。报告的指标不只是准确率，还包括**效率、无效响应率、推理模式出现频次**这类更精细的过程性指标
+- **测试规模与发现**：评测了 20 个推理/非推理模型，o3-mini 综合表现最好；核心发现是**难度和轮次一起往上堆时，即便最前沿的推理模型也会显著掉分**——多轮交互式推理目前对所有模型都是短板，不只是小模型的问题
+- **关键定位**：这是横轴上介于 MT-Bench 和 Tool-Calling 之间、容易被忽略的一级——它比 MT-Bench 更客观（自动判定，不靠 LLM 主观打分），比 Tool-Calling/BFCL 更聚焦"推理过程"而非"调用协议格式对不对"，是一个和 Tool-Calling 平行、而不是被它包含的能力维度
+
+### 4. BFCL（Berkeley Function Calling Leaderboard，Gorilla 项目）
+
+这是四个基准里唯一经历了完整版本演进、能直接体现"能力金字塔怎么一步步爬高"的例子：
+
+| 版本 | 新增内容 | 评测方法 |
+|---|---|---|
+| **V1** | `simple`/`multiple`/`parallel`/`parallel_multiple` 及多语言变体（Java/JS/Python） | **AST 匹配**——比较生成的函数调用抽象语法树结构和标准答案是否一致，纯格式/参数正确性 |
+| **V2（Live）** | 改用真实来源数据；新增 **relevance/irrelevance 检测**——判断模型在"没有一个工具真的相关"时会不会正确拒绝调用，`live_` 前缀系列类别 | 同样是 AST 匹配，但数据更真实、规模更大 |
+| **V3（Multi-Turn）** | 新增 `multi_turn_base`/`miss_func`/`miss_param`/`long_context`/`composite`——真正的**多轮、带状态追踪**的工具调用场景 | 引入状态一致性检查，不再是单次调用格式对错 |
+| **V4（Agentic，2025 ICML）** | 新增 **Web Search**（200 例，含真实场景下随机注入的 503/429/403 等 6 种编程访问错误，测多跳推理+错误恢复）+ **Memory**（465 例，测跨会话的持久化/用户专属状态管理）+ **Format Sensitivity**（[5 个维度的输入格式变体](https://gorilla.cs.berkeley.edu/blogs/17_bfcl_v4_prompt_variation.html)，包括输出格式如 JSON vs Python 函数调用语法，测模型对格式扰动的鲁棒性） | Web Search + Memory 合计构成 665 例 "Agentic" 评测集 |
+
+- **重要提醒**：官方明确说明**各版本分数不可直接跨版本比较**——V4 比 V1 难得多，同一个模型在 V1 上接近满分，放到 V4 的 Agentic 类别上可能大幅下滑
+- **关键定位**：BFCL 本身就是一条从"纯格式检查"（V1）到"真正的 agentic 能力"（V4：会不会用外部工具获取信息、会不会维护跨会话状态、格式变了会不会崩）的完整演进链——它自己内部就是一个微缩版的能力金字塔
+
+### 5. τ-bench / τ²-bench（Sierra Research）
+
+- **τ-bench**：Yao et al., 2024，《[τ-bench: A Benchmark for Tool-Agent-User Interaction in Real-World Domains](https://arxiv.org/abs/2406.12045)》
+  - **形式**：retail（零售）和 airline（航空）两个领域，**单向控制**——只有 Agent 能调用工具改变世界状态，用户只是被动提供信息
+  - **评测方法**：判定标准是**任务终态**——把最终数据库状态和标注好的目标状态做比较，而不是看回答像不像人话；同时引入了 **pass^k** 指标
+  - **pass^k 的精确定义**（容易被搞混，需要澄清）：pass^k 衡量的是"**k 次独立重复试验全部成功**的概率"，是比标准 pass@k（k 次里至少 1 次成功）严格得多的**可靠性/最坏情况**指标。数学上 pass^k 随成功率 p 呈 p^k 指数衰减——一个单次成功率 90% 的模型，到 k=8 时"每次都成功"的概率会跌到 57% 左右，这正是 pass^k 存在的意义：暴露 pass@1/pass@k 掩盖掉的不稳定性。[这个指标后来被 Anthropic 的模型卡片、CORE-Bench 等基准直接借用](https://hippocampus-garden.com/pass_k/)
+- **τ²-bench**：2025，《[τ²-Bench: Evaluating Conversational Agents in a Dual-Control Environment](https://arxiv.org/abs/2506.07982)》
+  - **新增 Telecom（电信）领域，建模成 Dec-POMDP（去中心化部分可观测马尔可夫决策过程）**——**双向控制**：Agent 和用户都可以用工具去改变同一个共享环境的状态，测的是**协调与沟通**能力，不只是"Agent 自己会不会用工具"
+  - **配套的用户模拟器**是一处方法论亮点：论文报告电信领域的环境耦合用户模拟器错误率只有 **16%**（其中 6% 是严重错误），远低于此前单向控制基准里用户模拟器 40%-47% 的错误率——这本身也是一项可以被借鉴的评测基础设施改进
+  - **实测数据**（论文原始报告）：GPT-4.1 在 retail/airline/telecom 三个领域的 pass@1 分别是 **74% / 56% / 34%**——从单向控制切到双向控制，能力断崖式下降；且论文明确指出**当前公开排行榜上头部模型已经刷到 98% 以上**，说明这个领域进步极快，读论文数字时要注意时间戳
+- **关键定位**：这是横轴上唯一一个**同时具备"多轮 + 工具调用 + 终态精确判定 + 可靠性量化（pass^k）"**四个要素的基准，是 BFCL（测格式对不对）和 SWE-bench（测开放式任务能不能做完）之间承上启下的一级——本系列 `agentic_test_design_proposal.md` 里提出的测试方案，就是把这一级的方法论往下嫁接到 Runtime 自测层面
+
+## 二、横向对比表
+
+| 基准 | 提出时间 | 轮次 | 考察核心 | 评测方法 | 规模 | 客观/主观 | 当前状态 |
+|---|---|---|---|---|---|---|---|
+| MMLU | 2020 | 单轮 | 知识背诵+基础推理 | 精确匹配 | 57 学科海量题 | 客观 | **已饱和**，被 MMLU-Pro 接棒（也已逼近饱和） |
+| MT-Bench | 2023 | 2 轮 | 对话连贯性/指令遵循 | LLM-as-judge 1-10 打分 | 80 题 × 8 类别 | 主观（人类一致率 ~85%） | 已被认为"太小、太浅"，衍生出 MT-Bench-101/++ |
+| MTR-Bench | 2025 | 多轮（交互式环境） | 多轮**推理**正确性 | 自动化 Generator-Monitor-Evaluator，测准确率+效率+无效率 | 4 类 40 任务 3600 实例 | 客观（自动判定） | 新基准，前沿模型随难度/轮次增加显著掉分 |
+| BFCL v1→v4 | 2023→2025 | v1-v2 单轮 → v3-v4 多轮/跨会话 | v1 格式正确性 → v4 真实 agentic 能力（联网/记忆/鲁棒性） | AST 匹配（早期）→ 状态/结果匹配（v3+） | v4 Agentic 类 665 例 | 客观 | 持续演进中，各版本分数不可比 |
+| τ-bench / τ²-bench | 2024/2025 | 多轮 | 工具调用任务**终态**是否正确 + 可靠性 | 数据库终态匹配 + pass^k | retail/airline/telecom 三领域 | 客观 | 头部模型进步极快（论文 34% vs 公开榜单已超 98%） |
+
+## 三、放回横轴：这几个基准该怎么排进能力金字塔
+
+`capability_x_systems_rigor_matrix.md` 原有横轴是 `MMLU/GSM8K → MT-Bench → Tool-Calling/JSON → τ-bench → SWE-bench` 五级，现在可以把 MTR-Bench 和 BFCL 的完整版本史嵌进去，让这根轴更精细：
+
+```
+X1          X2         X2.5           X3(v1→v4 完整演进)              X4              X5
+MMLU   →  MT-Bench  →  MTR-Bench  →  BFCL v1(格式)→v2(相关性)→v3(多轮状态)→v4(联网/记忆/鲁棒性)  →  τ-bench/τ²-bench  →  SWE-bench
+客观选择    对话连贯性    交互式推理      纯AST匹配        真实数据         状态追踪          真agentic能力         终态匹配+pass^k        开放式代码修改
+（背诵）   （LLM主观打分） （自动化客观判定）                                                （BFCL 内部的能力金字塔）
+```
+
+一个值得注意的细节：MT-Bench 和 MTR-Bench 虽然名字相似（都叫"多轮"），但**评测哲学完全不同**——MT-Bench 靠 LLM 当裁判做主观打分，MTR-Bench 靠环境自动判定客观对错。这和此前六份调查报告里反复出现的"命名相似但含义不同"陷阱（SGLang 的 `multi_round`、vLLM 的伪多轮）是同一类提醒：看到"多轮"两个字，永远要往下多问一句"是靠什么判的对错"。
+
+## 四、和整个调查系列的连接点：这五个基准，没有一个考虑过"Runtime 层"
+
+把这五个基准放回整个系列的核心问题里看，结论和之前完全一致：
+
+**MMLU、MT-Bench、MTR-Bench、BFCL、τ-bench/τ²-bench——全部是纯粹的模型能力评测，没有一个基准的官方评测协议里包含"这个分数是在什么 serving 配置下跑出来的"这个变量。** 它们默认假设推理是精确的、确定性的（或者假设采样噪声是评测本身要处理的问题，而不是系统引入的），完全没有涉及：
+
+- 跑评测时开没开前缀缓存/KV cache 复用
+- 权重/KV cache 是否被量化
+- 是否用了投机解码
+- 评测跑在单个请求下，还是高并发多租户场景下（batch-size 依赖的数值不确定性此前有研究讨论过，但和这几个基准的官方协议无关）
+
+这正好和 `capability_x_systems_rigor_matrix.md` 纵轴要补的东西对上——这些基准分数目前默认都是在"Y0：无系统维度"的假设下报告的。而六份调查报告揭示的现实是：六个 Runtime 里没有一个把 BFCL/τ-bench 这类基准跑在"前缀缓存+量化+投机解码同时开启"的配置下做过日常回归。也就是说：**即便模型能力金字塔上的每一级都有了对应的权威基准，这些基准的分数在实际生产配置下是否依然成立，仍然是全行业没有人验证过的事**——这也是 `agentic_test_design_proposal.md` 里那套测试方案存在的意义：不是要再发明一个新基准，而是要把这些已经权威的基准，**在 Runtime 的真实优化配置矩阵下**重新跑一遍。
+
+## 参考链接
+
+- [MMLU/MMLU-Pro 现状与饱和问题](https://www.digitalapplied.com/blog/llm-benchmark-methodology-2026-contamination-leaderboard-guide)
+- [MMLU-Pro 详解](https://intuitionlabs.ai/articles/mmlu-pro-ai-benchmark-explained)
+- [Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena（原始论文）](https://arxiv.org/abs/2306.05685)
+- [MT-Bench 方法论详解](https://www.emergentmind.com/topics/mt-bench-benchmarks)
+- [MTR-Bench 论文](https://arxiv.org/abs/2505.17123)
+- [Berkeley Function Calling Leaderboard V4 官方页面](https://gorilla.cs.berkeley.edu/leaderboard.html)
+- [BFCL V4 Format Sensitivity 博客](https://gorilla.cs.berkeley.edu/blogs/17_bfcl_v4_prompt_variation.html)
+- [BFCL 版本演进详解](https://ukgovernmentbeis.github.io/inspect_evals/evals/assistants/bfcl/index.html)
+- [τ-bench 原始论文](https://arxiv.org/abs/2406.12045)
+- [τ²-Bench 论文](https://arxiv.org/abs/2506.07982)
+- [τ²-bench GitHub 仓库](https://github.com/sierra-research/tau2-bench)
+- [pass^k vs pass@k 详细辨析](https://hippocampus-garden.com/pass_k/)
