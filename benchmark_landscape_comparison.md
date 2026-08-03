@@ -58,6 +58,22 @@
   - **实测数据**（论文原始报告）：GPT-4.1 在 retail/airline/telecom 三个领域的 pass@1 分别是 **74% / 56% / 34%**——从单向控制切到双向控制，能力断崖式下降；且论文明确指出**当前公开排行榜上头部模型已经刷到 98% 以上**，说明这个领域进步极快，读论文数字时要注意时间戳
 - **关键定位**：这是横轴上唯一一个**同时具备"多轮 + 工具调用 + 终态精确判定 + 可靠性量化（pass^k）"**四个要素的基准，是 BFCL（测格式对不对）和 SWE-bench（测开放式任务能不能做完）之间承上启下的一级——本系列 `agentic_test_design_proposal.md` 里提出的测试方案，就是把这一级的方法论往下嫁接到 Runtime 自测层面
 
+### 6. SWE-bench / SWE-bench Verified / SWE-bench Lite / SWE-bench Pro
+
+前四节和 τ-bench 都被反复引用作为"能力金字塔"的参照系，但此前没有给 SWE-bench 单独的详细档案——这里补上，同时说明它和前五个基准在判分哲学上的根本差异。
+
+- **提出**：Jimenez et al., 2023（Princeton），《SWE-bench: Can Language Models Resolve Real-World GitHub Issues?》
+- **形式**：从 12 个主流 Python 开源仓库的真实 GitHub Issue + 对应 PR 构造任务——给模型一个真实 issue 描述和完整代码库，要求生成一个补丁（patch/diff）去解决这个 issue。构造管线是三阶段过滤：抓取约 9 万个 PR → 按"是否关联 issue、是否修改了测试"过滤 → 只保留能通过"fail-to-pass"执行验证的实例 → 最终产出 2294 个高质量任务
+- **考察什么**：**开放式真实软件工程任务**——没有预设的动作空间，agent 可以做任何事（读文件、改代码、跑测试、调用工具），这是它和 BFCL/τ-bench 最本质的区别：BFCL/τ-bench 的任务空间和终态都是预先定义好的（函数签名、数据库目标状态），SWE-bench 完全开放，怎么解决问题、改几个文件、用什么策略都不设限
+- **评测方法**：**FAIL_TO_PASS + PASS_TO_PASS** 双重单测门禁——每个任务配一组人工编写的真实单测，生成的补丁必须让"修复前失败、修复后应该通过"的测试（FAIL_TO_PASS）全部通过，同时不能让"修复前后都应该通过"的测试（PASS_TO_PASS）退化。评测跑在带固定依赖版本的 Docker 容器里，保证观测到的分数差异反映的是模型能力而不是环境差异
+- **规模与变体**：
+  - **SWE-bench**（原始）：2294 个实例
+  - **SWE-bench Lite**：300 个实例子集（11 个仓库），成本更低，常用于快速迭代
+  - **SWE-bench Verified**：OpenAI 联合 SWE-bench 团队于 2024 年推出的 500 个人工校验子集——原始数据集里部分任务描述模糊、单测本身有问题，导致"模型做错"和"任务本身不公平"分不清，Verified 专门过滤掉这些歧义任务，是目前跨模型对比的主流子集
+  - **SWE-bench Pro**（2026，Scale AI）：1865 个多语言任务，专门应对数据污染问题——在 Verified 上刷到 80%+ 的模型，在 Pro 上只有 46%-57%，这个落差被认为是"更真实地反映当前能力"，不是模型变差了
+- **当前状态**：[Verified 榜单头部竞争已经极度压缩](https://benchmarkingagents.com/swe-bench/)——2026 年中头部 6 个模型分差在 1.3 个百分点以内，接近评测脚手架（scaffolding）差异带来的噪声范围；[也有对排行榜可信度的直接质疑](https://www.digitalapplied.com/blog/swe-bench-verified-june-2026-benchmark-vs-scaffolding-analysis)——某统计站点上 100 个模型里只有 1 个带独立验证标记，其余 99 个是厂商自报分数，而每家用的评测脚手架（工具定义、重试逻辑、上下文管理）都不一样，跨厂商可比性存疑；Gemini 3.1 Pro 从 Verified 的 80.6% 掉到 Pro 的 54.2%，Opus 4.5 从 Verified 80.9% 掉到 Scale SEAL 公开集的 45.9%，这类"断崖式下跌"进一步说明 Verified 分数的参考价值正在被行业质疑
+- **关键定位**：这是横轴上目前唯一一个**开放式、无预设终态**的基准——BFCL 判"函数调用格式对不对"、τ-bench 判"数据库终态是否等于标注目标"，都是收敛、可精确定义的判分空间；SWE-bench 判"补丁能不能让真实单测通过"，判分标准客观但任务空间完全开放，代表能力金字塔里"真实开放式任务"这一档。但如上所述，这一档目前正经历"数据污染争议 + 评测脚手架差异主导分数差"的方法论危机——**分数客观（单测过没过是二元事实），可比性存疑（不同厂商的脚手架能贡献远超模型本身的分数差异）**，这是它和 BFCL/τ-bench 相比一个独特的、值得警惕的风险点
+
 ## 二、横向对比表
 
 | 基准 | 提出时间 | 轮次 | 考察核心 | 评测方法 | 规模 | 客观/主观 | 当前状态 |
@@ -67,6 +83,7 @@
 | MTR-Bench | 2025 | 多轮（交互式环境） | 多轮**推理**正确性 | 自动化 Generator-Monitor-Evaluator，测准确率+效率+无效率 | 4 类 40 任务 3600 实例 | 客观（自动判定） | 新基准，前沿模型随难度/轮次增加显著掉分 |
 | BFCL v1→v4 | 2023→2025 | v1-v2 单轮 → v3-v4 多轮/跨会话 | v1 格式正确性 → v4 真实 agentic 能力（联网/记忆/鲁棒性） | AST 匹配（早期）→ 状态/结果匹配（v3+） | v4 Agentic 类 665 例 | 客观 | 持续演进中，各版本分数不可比 |
 | τ-bench / τ²-bench | 2024/2025 | 多轮 | 工具调用任务**终态**是否正确 + 可靠性 | 数据库终态匹配 + pass^k | retail/airline/telecom 三领域 | 客观 | 头部模型进步极快（论文 34% vs 公开榜单已超 98%） |
+| SWE-bench (Verified/Lite/Pro) | 2023→2026 | 开放式（无轮次概念） | 真实 GitHub issue **能否被实际解决** | 真实单测门禁（FAIL_TO_PASS + PASS_TO_PASS），Docker 沙箱 | 原始2294 / Verified 500 / Lite 300 / Pro 1865(多语言) | 客观（单测过没过是二元事实），但**跨厂商可比性存疑** | Verified 榜单头部已压缩至 1.3pp 内；Pro 上分数普遍腰斩，暴露污染/脚手架问题 |
 
 ## 三、放回横轴：这几个基准该怎么排进能力金字塔
 
@@ -111,6 +128,37 @@ MMLU   →  MT-Bench  →  MTR-Bench  →  BFCL v1(格式)→v2(相关性)→v3(
 
 这正好和 `capability_x_systems_rigor_matrix.md` 纵轴要补的东西对上——这些基准分数目前默认都是在"Y0：无系统维度"的假设下报告的。而六份调查报告揭示的现实是：六个 Runtime 里没有一个把 BFCL/τ-bench 这类基准跑在"前缀缓存+量化+投机解码同时开启"的配置下做过日常回归。也就是说：**即便模型能力金字塔上的每一级都有了对应的权威基准，这些基准的分数在实际生产配置下是否依然成立，仍然是全行业没有人验证过的事**——这也是 `agentic_test_design_proposal.md` 里那套测试方案存在的意义：不是要再发明一个新基准，而是要把这些已经权威的基准，**在 Runtime 的真实优化配置矩阵下**重新跑一遍。
 
+## 六、当前实践：面向 Agent 框架产品的评测组合（与 Runtime 层测试是两个不同的评测对象）
+
+需要先划清一个容易混淆的边界：本文档前五节讨论的基准，评估对象是**模型/Agent 框架的能力**；本系列其余文档（六份 `*_agentic_evaluation_investigate.md`、`agentic_test_design_proposal.md`、`capability_x_systems_rigor_matrix.md`）讨论的是**Runtime（推理引擎）层该怎么测**——这是两个不同的评测对象。评估 Copilot、AutoGen、OpenAI Agent、Claude Agent、Microsoft Agent Framework 这类"Agent 框架产品"时，用的正是本节讨论的基准组合，不是前面 Runtime 测试方法论那一套。
+
+### 6.1 产品级评测的基础链路：MMLU → MT-Bench → BFCL → τ-bench
+
+结合多份 2026 行业评测指南的独立结论，四层结构反复收敛到同一个排序：MMLU/MMLU-Pro（已饱和，前沿模型普遍 >88%，区分度低）→ MT-Bench（LLM-judge 主观打分，测"顺不顺"不是"对不对"）→ BFCL v4（call-level 静态测试：函数选对没有、参数填对没有）→ τ-bench/τ²-bench（多轮工具调用 + 状态维持 + 用户中途修改 + 判断任务何时真正完成）。[Spheron 2026 Tool-Calling Benchmark Guide](https://www.spheron.network/blog/tool-calling-benchmarks-bfcl-tau-bench-latency-optimization/)、[FutureAGI 2026 Evaluation Guide](https://futureagi.com/blog/evaluating-llm-systems-metrics-benchmarks-2026/)、[Kili Technology 2026 AI Benchmarks Guide](https://kili-technology.com/blog/ai-benchmarks-guide-the-top-evaluations-in-2026-and-why-theyre-not-enough) 三份独立资料给出同一结构，且都明确指出**τ-bench 比 BFCL v4 更难**——原因是"模型必须在多轮工具调用结果之间维持状态、处理用户中途修改、自己判断任务到底完成没有"，这和第三节 X3(BFCL)→X4(τ-bench) 的排序结论一致。"MMLU/MT-Bench 更多被视为基础模型能力评测，τ-bench+BFCL 是 agentic 核心组合"这个定位是成立的。
+
+### 6.2 MTR-Bench 该放在哪：一个尚无共识的位置，不宜写成确定的一级
+
+MTR-Bench **不在**上述几份 2026 行业综述的常规名单里——它是 2025 年的学术论文（中科大/阿里/新国立），目前没有证据表明前述产品级评测已经把它纳入常规流程。外部评测资料（[EmergentMind](https://www.emergentmind.com/topics/mtr-bench)）明确把它和 BFCL 定位成**测不同维度**：MTR-Bench 测"通用交互式推理"（迭代解题、自适应规划、按搜索空间大小精确校准的难度分级），BFCL 测"工具调用/函数调用准确性"，两者被外部资料称为"互补"（complementary），不是谁比谁更难的线性关系。因此把 MTR-Bench 摆进金字塔里 BFCL 和 τ-bench 之间的固定一级，是一种简化——更准确的表述是"学术界提出的补充维度，与 BFCL 平行，尚无产品级评测采用的证据"，而不是"已经和 BFCL/τ-bench 一起成为核心组合"。
+
+### 6.3 金字塔里没有 SWE-bench：多数情况下是合理省略，不是遗漏，但它本身也有独立的可信度问题
+
+2026 年的行业综述普遍把评测拆成**并行的簇**，而不是一条单一链路：知识推理（MMLU-Pro/GPQA/AIME）、代码（HumanEval/MBPP 已饱和，SWE-bench Verified 是当前前沿）、Agentic 工具使用（BFCL v4、τ-bench/τ²-bench）、数学（AIME-25/FrontierMath）。也就是说，**SWE-bench 和 τ-bench 是两个并行的顶层，分别对应"代码智能体"和"通用工具智能体"两个应用域，不是叠在同一条金字塔上的上下级关系**。落到具体框架上：Copilot 是明确的代码智能体，评测它需要单独补 SWE-bench Verified 这一层；AutoGen/OpenAI Agent/Claude Agent/Microsoft Agent Framework 更偏通用工具调用场景，τ-bench/BFCL 这条链路已覆盖主要需求，可以不强制引入 SWE-bench。
+
+SWE-bench 的详细档案见第一节新增的第 6 条——这里额外提醒一点，如果确实需要把它补进某个 Agent 框架的评测组合（比如评测 Copilot 类产品）：**SWE-bench Verified 榜单目前的可信度正在被行业质疑**——2026 年中头部模型分差已压缩到 1.3 个百分点以内，且换到刻意规避数据污染的 SWE-bench Pro 上，同一批模型的分数普遍从 80%+ 腰斩到 46%-57%。原因不是模型能力真的差这么多，而是 Verified 上的高分很大程度由"评测脚手架"（工具定义、重试逻辑、上下文管理）而非模型本身贡献，且大部分公开分数是厂商自报、缺乏独立验证。这意味着：**如果引入 SWE-bench 作为评测组合的一部分，报告出来的绝对分数应该谨慎解读，优先看同一套评测脚手架下的相对排名，而不是不同厂商自报分数的直接对比**——这一点和本系列此前反复强调的"打开代码验证，而不是相信自述"的方法论是一致的。
+
+### 6.4 修订后的组合建议
+
+| 层级 | 基准 | 定位 | 采用现状 |
+|---|---|---|---|
+| 基座能力 | MMLU/MMLU-Pro | 知识/推理，已饱和 | 成熟共识，仅作背景参考 |
+| 对话质量 | MT-Bench | 主观对话连贯性 | 成熟共识，仅作背景参考 |
+| 工具调用正确性 | BFCL v4 | call-level 函数选择/参数正确性 | **核心组合**，多份 2026 行业指南独立收敛到同一结论 |
+| 通用交互式推理（平行维度，非线性叠加） | MTR-Bench | 自适应规划、按难度分级的迭代解题 | 学术界提出，尚无产品级评测采用证据，建议标注为"观察中的补充维度" |
+| 端到端任务完成度 | τ-bench / τ²-bench | 多轮状态维持 + 用户中途修改 + 任务终态判定 | **核心组合**，公认比 BFCL 更难 |
+| 代码域专项（与上面平行，非叠加） | SWE-bench Verified | 开放式真实代码库修改 | 仅当评测对象含代码智能体（如 Copilot）时需要补充 |
+
+**结论**：τ-bench + BFCL 是当前有多份独立行业资料收敛支持的"核心组合"，MMLU/MT-Bench 作为"基础模型能力参考"而非"agentic 核心指标"的定位也成立。MTR-Bench 值得关注，但更适合定位为"和 BFCL 平行的补充维度"而非金字塔里确定的某一级；SWE-bench 的取舍取决于评测对象是否包含代码智能体——这些是把原始表述放进正式文档前需要做的修正，避免把一个尚处学术阶段的基准的采用成熟度写得比实际更靠前，也避免把两个并行应用域的基准误写成单一线性顺序。
+
 ## 参考链接
 
 - [MMLU/MMLU-Pro 现状与饱和问题](https://www.digitalapplied.com/blog/llm-benchmark-methodology-2026-contamination-leaderboard-guide)
@@ -125,3 +173,11 @@ MMLU   →  MT-Bench  →  MTR-Bench  →  BFCL v1(格式)→v2(相关性)→v3(
 - [τ²-Bench 论文](https://arxiv.org/abs/2506.07982)
 - [τ²-bench GitHub 仓库](https://github.com/sierra-research/tau2-bench)
 - [pass^k vs pass@k 详细辨析](https://hippocampus-garden.com/pass_k/)
+- [Spheron: AI Agent Tool Calling Benchmarks — BFCL v4, tau-Bench, and Function-Call Latency Optimization (2026 Guide)](https://www.spheron.network/blog/tool-calling-benchmarks-bfcl-tau-bench-latency-optimization/)
+- [FutureAGI: Evaluating LLM Systems — Metrics and Benchmarks (2026)](https://futureagi.com/blog/evaluating-llm-systems-metrics-benchmarks-2026/)
+- [Kili Technology: AI Benchmarks 2026 — Top Evaluations and Their Limits](https://kili-technology.com/blog/ai-benchmarks-guide-the-top-evaluations-in-2026-and-why-theyre-not-enough)
+- [EmergentMind: MTR-Bench — Interactive LLM Benchmark](https://www.emergentmind.com/topics/mtr-bench)
+- [SWE-bench 原始论文：Can Language Models Resolve Real-World GitHub Issues?](https://arxiv.org/abs/2310.06770)
+- [BenchmarkingAgents: SWE-bench Verified Explained — 2026 Methodology, Tiers, Caveats](https://benchmarkingagents.com/swe-bench/)
+- [DigitalApplied: SWE-bench in 2026 — Benchmarks vs Scaffolding Reality](https://www.digitalapplied.com/blog/swe-bench-verified-june-2026-benchmark-vs-scaffolding-analysis)
+- [DEV Community: SWE-bench Scores and Leaderboard Explained (2026)](https://dev.to/rahulxsingh/swe-bench-scores-and-leaderboard-explained-2026-54of)
