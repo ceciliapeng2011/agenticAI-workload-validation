@@ -1,7 +1,7 @@
 # 一份"真实有效"的 Agentic 测试设计方案
 
 > 
-> 背景：对 vLLM、SGLang、TensorRT-LLM、llama.cpp、Ollama、OpenVINO GenAI 六个系统的调查（见同目录下六份 `*_agentic_evaluation_investigate.md`）发现一条没有例外的规律——**没有一个系统的测试，同时做对"真实编排 + 正确判分标准 + 优化配置组合下验证 + 对抗性输入下的鲁棒性"这四件事**。本文档在六次调查的基础上，给出一套可以直接落地的测试设计方案，目标是把六家各自做对的那一小块拼成一份完整的、可执行的测试蓝图。
+> 背景：对 vLLM、SGLang、TensorRT-LLM、llama.cpp、Ollama、OpenVINO GenAI 六个系统的调查（见同目录下六份 `*_agentic_evaluation_investigate.md`）发现一条没有例外的规律——**没有一个系统的测试，同时做对"真实编排 + 正确判分标准 + 优化配置组合下验证 + 对抗性输入下的鲁棒性 + 多会话/多 Agent 场景"这五件事**。本文档在六次调查的基础上，给出一套可以直接落地的测试设计方案，目标是把六家各自做对的那一小块拼成一份完整的、可执行的测试蓝图。
 
 ## 一、测试目标
 
@@ -17,8 +17,12 @@
 | G2. 判分正确性 | 断言"任务终态对不对"，不是"格式合不合法"或"有没有崩" | 格式合法≠任务做对；六次调查里大多数"看似端到端"的测试止步于格式/崩溃检查 |
 | G3. 配置敏感性 | 同一套任务，在"优化关闭"和"优化组合开启"两种配置下都要跑，且判分标准在两种配置下都要过 | 否则测的只是"默认配置下能力还行"，回答不了"优化到底有没有偷偷破坏 agentic 能力"这个真正的风险点 |
 | G4. 鲁棒性（对抗性输入下不能被拖垮） | 工具 schema 本身可能是恶意/畸形的（巨大枚举、灾难性回溯正则、深层嵌套 JSON Schema），必须验证"不崩溃、掩码计算耗时可控"，这和"任务做没做对"是独立的一个维度 | agentic 场景里工具 schema 常来自第三方/MCP server，不完全可信；G1-G3 验证的是精度，G4 验证的是可用性——一个系统可以精度很高，同时被恶意 schema 轻易拖垮，两者互不覆盖 |
+| G5. 多会话/多 Agent 场景 | N 个 Agent 会话并发时：① 资源竞争下彼此不能踩踏（隔离性）② 子 Agent 共享 system prompt/工具 schema 时前缀复用要真正生效 ③ 多 Agent 协作传递结果后任务终态仍要正确 | 单会话测试无法暴露"一个长上下文 Agent 把 KV cache 占满、导致其他 Agent 被驱逐重算"这类问题；而 agentic 生产部署几乎必然是多会话并发的 |
 
-G4 是四个子目标里现状最差的一个——六个系统里只有 vLLM 有相关代码（一处对应真实安全公告 GHSA-rwxx-mrjm-wc2m 的 ReDoS 防护单测 + 一处会**主动过滤掉**复杂 schema 的 serving 压测），且两者从未被拼在一起验证过；另外五家零命中。详见 3.6 节的具体设计。
+G4 与 G5 是五个子目标里现状最差的两个：
+
+- **G4**：六个系统里只有 vLLM 有相关代码（一处对应真实安全公告 GHSA-rwxx-mrjm-wc2m 的 ReDoS 防护单测 + 一处会**主动过滤掉**复杂 schema 的 serving 压测），且两者从未被拼在一起验证过；另外五家零命中。详见 3.6 节。
+- **G5**：三个子维度里，"资源竞争"和"缓存共享"各有工具但都未接入 CI，"**协作正确性完全空白**"——TensorRT-LLM 是唯一有多 Agent 编排原语的系统（`ParallelProcess`、`MCTSController`/`TOTController`），但其测试用 `DummyTask` + mock worker，不验证真实模型协作。五个能力基准（MMLU/MT-Bench/MTR-Bench/BFCL/τ-bench）**没有一个测多 Agent**——注意 τ²-bench 的"双向控制"是 Agent + 用户模拟器，第二方是模拟的人而非另一个 Agent。详见 3.7 节。
 
 ## 二、六个系统的现状：谁做对了哪一块
 
@@ -201,6 +205,71 @@ def test_structured_decoding_survives_adversarial_schema(schema_case, concurrenc
 - **不过滤**极端 schema，反而把它们当作专门的测试输入（补 vLLM 压测脚本主动过滤掉极端 case 的缺口）
 - 加一条其他任何现有测试都没做的检查：**隔离性**——一个恶意请求不能拖累同批次的正常请求延迟，这是多租户 serving 场景下真正的风险点（对应到 agentic 场景就是：一个 Agent 的恶意/写坏的工具 schema，不应该拖垮同一 Runtime 上其他 Agent 会话的响应速度）
 
+### 3.7 G5 多会话/多 Agent 场景：三个子维度，其中"协作正确性"是全场空白
+
+#### 3.7.1 先明确多会话下必须换掉的四个性能指标
+
+单请求时代的指标在多会话下会系统性说谎，这是设计 G5 测试前必须先确立的判据：
+
+| 指标 | 单会话下的做法（会说谎） | 多会话下的正确做法 | 谁已经做到 |
+|---|---|---|---|
+| 吞吐 | 聚合 `output_throughput`——高并发会把它推高，但每个 Agent 都变慢了 | **per-user 吞吐**：N 个并发会话下单会话吞吐不低于阈值 | 仅 TensorRT-LLM（`output_throughput_per_user_tok_s`） |
+| 缓存命中率 | 请求加权、或客户端近似估算 | **token 加权 + 分层拆解**（GPU/host/storage 命中对 TTFT 影响差一个数量级）+ 按 step 类型分组（用户新发起 vs 工具结果回填） | 仅 SGLang（`cache_hit_rate_pct` + `device_/host_/storage_cached_tokens`）；分组维度无人做 |
+| 隔离性/公平性 | 完全不测 | **P99/P50 时延比**（尾部离散度）、**被抢占/重算次数**、会话间吞吐方差 | **全场空白**（vLLM 有 `num_preemptions` Prometheus 指标但未进任何压测报告） |
+| 时延 | 全局均值——会被大量早期轮次拉平 | **按轮次拆解** per-turn TTFT/TPOT/ITL/E2EL，判断"第 N 轮是否已不可用" | vLLM Rust 版（`per_turn_metrics`）；Python 版留了 `conversation_id + start_time_ms` 分析入口 |
+
+#### 3.7.2 三个子维度的测试设计
+
+```python
+# 维度一：资源竞争 / 隔离性——N 个并发 Agent 会话不能互相踩踏
+@pytest.mark.parametrize("num_sessions", [1, 8, 32])
+def test_multi_session_isolation(num_sessions):
+    server = start_server(prefix_caching=True)
+    # 一个"重"会话（长上下文，模拟深度 ReAct 循环）+ N-1 个正常会话并发
+    heavy = launch_session(server, LONG_CONTEXT_AGENTIC_TASK)
+    normals = [launch_session(server, NORMAL_AGENTIC_TASK) for _ in range(num_sessions - 1)]
+    wait_all(heavy, *normals)
+
+    # 判据不是"总吞吐"，而是 per-user 视角 + 尾部离散度
+    assert per_user_throughput(normals) >= MIN_PER_USER_THROUGHPUT[num_sessions]
+    assert p99_p50_ratio(normals) <= MAX_TAIL_RATIO, \
+        "正常会话时延尾部离散度过大，说明重会话挤占了资源、缺乏隔离"
+    assert preemption_count(server) <= MAX_PREEMPTIONS[num_sessions], \
+        "被抢占/重算次数超阈值——KV cache 在多会话下发生了踩踏"
+
+# 维度二：子 Agent 共享前缀的复用效率——多 Agent fan-out 的缓存结构
+def test_subagent_shared_prefix_reuse():
+    server = start_server(prefix_caching=True)
+    # 模拟 fan-out：N 个子 Agent 共享同一份 system prompt + 工具 schema，各自后缀不同
+    sessions = [launch_subagent(server, SHARED_SYSTEM_PROMPT, unique_suffix=i) for i in range(16)]
+    wait_all(*sessions)
+
+    # 必须验证"真的命中了"，不能只信任配置开关（借鉴 3.5 节）
+    hit = server.cache_hit_stats()
+    assert hit.token_weighted_rate >= MIN_SHARED_PREFIX_HIT_RATE
+    assert hit.device_hit_ratio >= MIN_DEVICE_HIT_RATIO, \
+        "命中了但主要来自 host/storage 层，TTFT 收益会大幅低于预期"
+
+# 维度三：多 Agent 协作正确性——全场空白，需要新建
+def test_multi_agent_collaboration_correctness():
+    """一个 Agent 的输出作为另一个 Agent 的输入，验证最终任务终态正确。
+    判分沿用 3.1 的终态匹配 + 3.4 的 pass^k，不是看中间输出像不像。"""
+    server = start_server(prefix_caching=True, kv_quant="fp8")
+    for task in MULTI_AGENT_TASK_SUITE:
+        # 例：planner agent 拆解任务 → 多个 worker agent 并行执行 → aggregator agent 汇总
+        result = run_multi_agent_pipeline(server, task)   # 每个 agent 都是真实推理
+        assert task["check_final_state"](result)
+```
+
+#### 3.7.3 可借鉴的现成零件
+
+| 子维度 | 最接近的参考实现 | 缺口 |
+|---|---|---|
+| 资源竞争建模 | vLLM `benchmarks/multi_turn/benchmark_serving_multi_turn.py`：`--num-clients` × `--max-active-conversations` + `--send-conversation-id`，五家里对多并发会话建模最完整 | 只产出时延/吞吐，**不产出任何隔离性判据**；且未接入 CI |
+| 共享前缀结构 | SGLang `gsp_num_groups` × `gsp_prompts_per_group`（多会话共享 system prompt 组）+ `cache_hit_rate_pct` 分层指标 | 负载形状和指标都有，但两者没有被组合成"共享前缀复用效率"的断言 |
+| 多 Agent 编排原语 | TensorRT-LLM `ParallelProcess`（多控制器并行 + `branch_paths` 分支追踪）、`contrib/TreeInference`（`MCTSController`/`TOTController`）、`tree_of_thought_research`、`open_deep_research` | 编排能力真实存在，但 `test_parallel_process.py` 用 `DummyTask` + mock worker，**不验证真实模型协作正确性** |
+| 协作正确性判分 | 无现成实现；方法论可沿用 τ-bench 终态匹配 + pass^k | 需要新建多 Agent 任务集及其终态判定逻辑 |
+
 ## 四、CI 分层落地策略
 
 六次调查里反复出现的"规律 4"——真实测试因为太慢太贵被移出日常 CI——决定了这套方案如果不做分层，大概率会重蹈覆辙。参考 llama.cpp（`slow` marker + schedule 触发）和 TRT-LLM（L0/L1/L2 分级）的思路：
@@ -215,6 +284,15 @@ PR 门禁层必须足够便宜才能真正被日常执行——这是这次六�
 
 G4（鲁棒性）的分层策略要单独说明：单条 schema 的超时/崩溃防护（对应 vLLM 现有的那处安全单测）足够便宜，应该放进 **PR 门禁**；但完整的对抗 schema 集合 × 真实并发 × 隔离性验证（3.6 节的完整版本）成本更接近一次小型压测，应该放进 **Nightly**——这条正是"意识到问题存在"（PR 门禁）和"验证问题在真实负载下确实被解决"（Nightly）分开验证的具体案例。
 
+G5（多会话/多 Agent）的分层：
+
+| 子维度 | 建议层级 | 理由 |
+|---|---|---|
+| 资源竞争/隔离性（小规模，如 8 并发会话） | **Nightly** | 需要起真实服务 + 并发压测，超出 PR 门禁成本，但对回归很敏感 |
+| 资源竞争/隔离性（大规模，32+ 并发 × 长会话） | **Weekly** | 接近完整压测，耗时长；主要用于发现缓慢累积的退化 |
+| 子 Agent 共享前缀复用效率 | **Nightly** | 成本中等，且是判断 prefix caching 在 fan-out 场景是否真正生效的唯一手段 |
+| 多 Agent 协作正确性 | **Nightly**（精简任务集）+ **Weekly**（完整 + pass^k） | 每个任务涉及多个 Agent 的多次真实推理，成本是单 Agent 测试的数倍 |
+
 ## 五、借鉴清单（每一块具体来源与要补的缺口）
 
 | 设计元素 | 借鉴自 | 需要补上的缺口 |
@@ -228,6 +306,10 @@ G4（鲁棒性）的分层策略要单独说明：单条 schema 的超时/崩溃
 | 稳定性验证（pass^k） | τ-bench 方法论（外部基准，非六个系统自带） | 六个系统里都没有对自己的工具调用测试做重复稳定性验证，需要引入 |
 | CI 分层，防止真实测试被移出日常路径 | llama.cpp（`slow` marker）、TensorRT-LLM（L0/L1/L2） | 需要明确设计"最小可日常跑的子集"，而不是做完整套件后因为慢被搁置 |
 | 对抗性 schema 鲁棒性验证（G4） | vLLM `test_regex_compilation_timeout.py`（安全公告驱动的防护意识）+ vLLM `benchmark_serving_structured_output.py`（真实并发压测框架） | 前者要去掉 mock、换成真实引擎；后者要去掉过滤逻辑、专测极端 case；且两者从未被拼在一起，还要新增"隔离性"验证（一个恶意请求不能拖累同批次正常请求） |
+| 多并发会话负载建模（G5-①） | vLLM `benchmarks/multi_turn/benchmark_serving_multi_turn.py`（`--num-clients` × `--max-active-conversations` + 会话亲和） | 需新增隔离性判据：P99/P50 时延比、被抢占次数、per-user 吞吐下限；且接入 CI |
+| 分层缓存命中率指标（G5-②判据） | SGLang `cache_hit_rate_pct` + `device_/host_/storage_cached_tokens` | 需按 step 类型（用户新发起 vs 工具结果回填）再分组，这个维度无人做过 |
+| per-user 吞吐视角（G5 判据） | TensorRT-LLM `output_throughput_per_user_tok_s` | 需与多会话负载建模结合，作为多 Agent 场景的主判据替代聚合吞吐 |
+| 多 Agent 编排原语（G5-③） | TensorRT-LLM `ParallelProcess` + `contrib/TreeInference`（`MCTSController`/`TOTController`） | 需把 `DummyTask`/mock worker 换成真实推理，并补终态判定 + pass^k |
 
 ## 六、这套方案本身的局限
 

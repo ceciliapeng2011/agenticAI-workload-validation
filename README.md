@@ -69,6 +69,10 @@ agenticAI/
 
 [agentic_test_design_proposal.md](agentic_test_design_proposal.md) 在六份调查报告的基础上往前走一步——不只是指出"没人做对"，而是把六家各自做对的那一小块（TRT-LLM 的真两轮编排、llama.cpp 的终态精确判定、OpenVINO GenAI 的性能-精度联合断言、SGLang 的日志级缓存命中核验、Ollama 的模型广度、τ-bench 的 pass^k 稳定性验证）拼成一套可以直接落地的测试蓝图，包含任务集设计、配置矩阵设计、CI 分层落地策略，以及逐项标注"借鉴自谁、还缺什么"。本质上，这份方案就是在填补上面那张二维图里空白的右上象限。
 
+## 延伸产出四：给 OpenVINO 管理层的技术报告
+
+[openvino_management_technical_report.md](openvino_management_technical_report.md) 是面向 OpenVINO（含 OpenVINO GenAI）管理层的落地建议报告，汇总以上所有分析产出，回答一个具体问题：**OpenVINO 这样的 runtime 应该建哪些针对 agentic AI workload 的测试？其它 runtime 是否已有可参考实现？哪些该进 CI，哪些适合 nightly/weekly？** 报告先给出 agentic workload 的 8 个特点及各自对应的测试类别，再盘点 OpenVINO GenAI 现有资产（`test_kv_cache_eviction` 联合断言方法论、`PerfMetrics`、`VLLMParserWrapper`、WWB 可扩展性）与空白，然后给出按优先级排列的 A-E 五类测试清单（工具调用编排正确性、优化×精度联合测试、agentic 性能压测、对抗性鲁棒性、基础设施增强），每类标注可参考的其它 runtime 实现和建议的 CI/Nightly/Weekly 归属，最后给出分阶段 roadmap。范围声明：仅覆盖 `~/openvino.genai`，不含 OVMS。
+
 ## 审计脚本（辅助工具）
 
 三个脚本对应调查的前两层取证——快速定位、留给人工深挖的起点，不能替代打开代码验证：

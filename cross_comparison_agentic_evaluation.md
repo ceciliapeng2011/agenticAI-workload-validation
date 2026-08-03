@@ -9,13 +9,18 @@
 |---|---|---|---|---|---|---|
 | 定位 | 多租户 serving | 多租户 serving | 多租户 serving（企业级） | 单机推理引擎 | 单机产品（vendored llama.cpp + 自研 MLX） | Intel 硬件单机推理引擎 + 多语言 SDK |
 | 官方性能 CI 负载形状 | 单轮 ShareGPT + 泊松到达 | 单轮 sharegpt/random/mmmu | 单轮固定 ISL/OSL 合成 | **无**（旗舰 Benchmark CI 已停用） | 单请求微基准 | 单/批量 prompt 微基准，**无官方回归 CI** |
-| 仓库内多轮/agentic 压测能力 | 有（独立 Rust 工具，未接入 CI） | 有（原生集成于主 bench 模块，Mooncake trace 支持） | 有（trtllm-bench 原生支持，可用真实 MT-Bench 数据） | 无 | 无 | 无 |
+| 仓库内多轮/agentic 压测能力 | 有，**两套互补**（Python 版 `benchmarks/multi_turn/` 强在多并发会话；Rust 版强在前缀共享比例+per-turn 指标），均未接入 CI | 有（原生集成于主 bench 模块，Mooncake trace 支持） | 有（trtllm-bench 原生支持，可用真实 MT-Bench 数据） | 无 | 无 | 无 |
+| 多并发会话（多 Agent 负载形状）建模 | **最完整**：`--num-clients` × `--max-active-conversations` + 会话亲和 | 有：`gsp_num_groups` × `gsp_prompts_per_group`（多会话共享 system prompt） | 无专门建模 | 无 | 无 | 无 |
+| 缓存命中率指标 | 客户端**近似值** `approx_cached_percent`（假设历史全命中） | **最强**：`cache_hit_rate_pct` + `device_/host_/storage_cached_tokens` 三层拆解 | 只有配置项（`kv_cache_reuse` bool），**无命中率指标** | 无 | 无 | 无（`cacheviz` 仅可视化） |
+| 标准 agentic 精度基准接入 | **有现成 BFCL multi-turn 评测脚本**（`run-bfcl-eval.sh`），但零 pipeline 引用、零阈值判定 → 手动工具 | 无 | 无（仅 examples 里的 SWE-bench Coder，未接入日常 CI） | 无 | 无 | 无 |
 | 该能力是否接入官方性能 CI | 否 | 否（仅接入一条独立的"功能正确性"nightly，非性能报告） | 否 | — | — | — |
 | 真实两轮工具调用测试（依赖上一轮真实推理输出） | 否（fixture 伪多轮） | 写对了，但唯一调用点被注释掉，**从未跑过** | **有，且确认在 L0 CI 活跃跑** | 有真实模型，但仍是 fixture 伪多轮 | 仅单轮（21 模型矩阵） | 无（parser 单测用手工构造 delta，`react_sample` 测试只比对跨语言一致性） |
 | 该工具调用测试是否在默认 PR 门禁跑 | 是 | 否（死代码） | 是 | 否（标记 `slow`，仅 schedule/手动） | 否（需 `-tags=integration`，未见于公开 CI） | 是（`test_react_sample_refs` 在常规 CI 跑，但不验证任务正确性） |
 | 工具调用测试时前缀缓存/KV复用默认状态 | **11/12 配置显式关闭** | 默认开启（未显式关闭） | 默认开启（未显式关闭） | 未特别处理 | N/A（产品层不直接控制） | N/A（工具调用测试未涉及 CB/前缀缓存路径） |
 | 量化/优化 × 精度 × 缓存复用 三者同框测试 | 无（2/38 kv_fp8 配置动机是"加速评测"） | 有 KV FP8 精度测试，但**显式关闭** radix cache | **有**：21 处显式开启 block reuse 配合量化/投机解码/guided decoding 做精度评测，且有 reuse/no-reuse 显式 A/B | 无自动化精度回归 | 无（精度评估完全委托上游） | **有，且是六者里方法论最严谨的一处**：同一断言里同时要求"相似度阈值"和"缓存压缩比阈值"都达标，覆盖 SnapKV/KVCrush/AdaptiveRKV |
-| 标准 agentic 精度基准接入（BFCL/τ-bench/AgentBench 等） | 无（BFCL 数据集仅用于压测负载，且丢弃多轮部分） | 无 | 无（仅 examples 里的 SWE-bench Coder，未接入日常 CI） | 无 | 无 | 无 |
+| 性能指标独有亮点 | `moving_avg_ttft/tpot`（观测缓存填满引起的时延漂移） | 分层缓存 token 统计 | `output_throughput_per_user`（多会话下唯一正确的吞吐视角）、`acceptance_rate/length`（投机解码收益量化） | — | — | `ipot`（区分推理时延与端到端 TPOT）、`grammar_compile_time`（约束解码开销） |
+| 多 Agent **协作正确性**测试 | 无 | 无 | 有编排原语（`ParallelProcess`、`MCTSController`/`TOTController`），但测试用 `DummyTask`/mock worker | 无 | 无 | 无 |
+| 隔离性/公平性指标（一个会话是否拖累其他会话） | 无（有 `num_preemptions` Prometheus 指标但未进压测报告） | 无 | 无 | 无 | 无 | 无 |
 | 精度评估方法论本身 | lm-eval-harness，38 配置，单轮 gsm8k/mmlu | lm_eval_configs，4 配置，单轮 gsm8k | 224 个测试，GSM8K/MMLU/JsonModeEval/CnnDailymail | 仅困惑度 + KL 散度，纯统计非任务型 | 无 | WWB：11 类评测器（文本/图像/视频/语音/多模态），任务类型覆盖面六者最广，但无 agentic 类型 |
 | 精度评估是否接入 CI | 是 | 是 | 是 | **否**（零命中，纯人工） | 无自身精度评估 | 是（WWB 矩阵化接入 `linux.yml`） |
 | MCP 协议原生支持 | 无 | 无 | 有（`tensorrt_llm.scaffolding`，编排层） | **有（推理服务器本体自带）** | 有（产品 Agent 层，`agent/tools`） | 无 |
