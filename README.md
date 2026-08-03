@@ -77,6 +77,10 @@ agenticAI/
 
 [tool_calling_mcp_primer.md](tool_calling_mcp_primer.md) 是一份独立于调查报告之外的**概念地图**，面向刚接触 agentic 系统、被"tool schema、function call、OpenAI Chat Completions API、MCP server"这堆术语绕晕的工程师。核心内容：这些术语分属两条不同协议——Function Calling 协议解决"模型怎么表达调用意图"（模型↔Runtime），MCP 协议解决"工具从哪来、怎么标准化接入"（Agent↔工具提供方），二者是叠加关系不是替代关系；文档用图文拆解了从"模型吐出原始文本"到"客户端真正执行工具并回填结果"的完整链路，并给出一张 **Agent Scope vs Runtime Scope 职责边界表**，配合六份调查报告里的真实代码（`VLLMParserWrapper`、`real_tool_impl`、llama.cpp 的 `--mcp-servers-json`、Ollama 的 `agent/` 包、TensorRT-LLM 的 `examples/scaffolding`）逐一对照说明每段代码站在这张图的什么位置上。
 
+## 延伸产出六：OpenVINO GenAI 的约束解码与 Tool-Call Parser 源码拆解
+
+[openvino_genai_structured_output_and_parser_impl.md](openvino_genai_structured_output_and_parser_impl.md) 打开 `~/openvino.genai` 源码，逐一说明 `tool_calling_mcp_primer.md` 第 4 节提到的两块 Runtime 内部机制具体怎么实现：**约束解码**（`StructuredOutputController` + 可插拔的 `xgrammar` 后端，支持 json_schema/regex/EBNF/structural_tags 四种来源，逐 token 用 bitmask 屏蔽非法 token，编译耗时被显式计入 `PerfMetrics.grammar_compiler_init_times`）和 **Tool-Call Parser**（批量 `Parser`——`Llama3JsonToolParser`/`Llama3PythonicToolParser`/直接调用 vLLM 真实 Python 类的 `VLLMParserWrapper`——与流式 `IncrementalParser` 两条并存路径，`run_generate_with_parsers` 是把两条路径粘合在一起的顶层编排点）。文档全程带文件路径+行号交叉引用，并指出一个容易被忽略的架构事实：**这两块子系统目前互不知道对方存在**，没有代码路径把 `tools` schema 自动接进约束解码，需要应用层自己手动组合。
+
 ## 审计脚本（辅助工具）
 
 三个脚本对应调查的前两层取证——快速定位、留给人工深挖的起点，不能替代打开代码验证：
