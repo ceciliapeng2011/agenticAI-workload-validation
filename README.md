@@ -73,6 +73,10 @@ agenticAI/
 
 [openvino_management_technical_report.md](openvino_management_technical_report.md) 是面向 OpenVINO（含 OpenVINO GenAI）管理层的落地建议报告，汇总以上所有分析产出，回答一个具体问题：**OpenVINO 这样的 runtime 应该建哪些针对 agentic AI workload 的测试？其它 runtime 是否已有可参考实现？哪些该进 CI，哪些适合 nightly/weekly？** 报告先给出 agentic workload 的 8 个特点及各自对应的测试类别，再盘点 OpenVINO GenAI 现有资产（`test_kv_cache_eviction` 联合断言方法论、`PerfMetrics`、`VLLMParserWrapper`、WWB 可扩展性）与空白，然后给出按优先级排列的 A-E 五类测试清单（工具调用编排正确性、优化×精度联合测试、agentic 性能压测、对抗性鲁棒性、基础设施增强），每类标注可参考的其它 runtime 实现和建议的 CI/Nightly/Weekly 归属，最后给出分阶段 roadmap。范围声明：仅覆盖 `~/openvino.genai`，不含 OVMS。
 
+## 延伸产出五：Tool Calling / Function Calling / MCP 概念全景（新手向）
+
+[tool_calling_mcp_primer.md](tool_calling_mcp_primer.md) 是一份独立于调查报告之外的**概念地图**，面向刚接触 agentic 系统、被"tool schema、function call、OpenAI Chat Completions API、MCP server"这堆术语绕晕的工程师。核心内容：这些术语分属两条不同协议——Function Calling 协议解决"模型怎么表达调用意图"（模型↔Runtime），MCP 协议解决"工具从哪来、怎么标准化接入"（Agent↔工具提供方），二者是叠加关系不是替代关系；文档用图文拆解了从"模型吐出原始文本"到"客户端真正执行工具并回填结果"的完整链路，并给出一张 **Agent Scope vs Runtime Scope 职责边界表**，配合六份调查报告里的真实代码（`VLLMParserWrapper`、`real_tool_impl`、llama.cpp 的 `--mcp-servers-json`、Ollama 的 `agent/` 包、TensorRT-LLM 的 `examples/scaffolding`）逐一对照说明每段代码站在这张图的什么位置上。
+
 ## 审计脚本（辅助工具）
 
 三个脚本对应调查的前两层取证——快速定位、留给人工深挖的起点，不能替代打开代码验证：
