@@ -96,8 +96,12 @@ OpenVINO GenAI 目前的独特优势和短板都很鲜明：`test_kv_cache_evict
 
 ### C 类：Agentic 性能压测（对应特点 1/2/3/7）——补最原始的一环
 
-**要测什么**：分三层递进，建议按顺序建设：
-1. **负载形状建模**：多轮、高前缀重复率、长输入短输出的合成/真实负载生成器（目前 `llm_bench` 完全没有这一层）。
+**要测什么**：分四层递进，建议按顺序建设：
+1. **负载形状建模**：多轮、高前缀重复率、长输入短输出的合成/真实负载生成器（目前 `llm_bench` 完全没有这一层）。具体设计需要把三个维度当成独立可组合的旋钮：
+   - **多轮**：优先用"真实驱动"而非"回放录制对话"——起真实 server，Turn 1 真推理拿到输出，回填后驱动 Turn 2，历史增长曲线才反映"这个配置下真实会发生的样子"（参考 vLLM `rust/src/bench/`、SGLang `serving.py::wrap_multi_turn_request_func`），而不是像 vLLM Python 版 `benchmarks/multi_turn/` 那样基于 ShareGPT 录制对话回放（真实感强但历史增长和被测模型的真实行为脱节）。
+   - **高前缀重复率**：用分组结构直接控制共享比例（参考 SGLang GSP 数据集的 `gsp_num_groups × gsp_prompts_per_group`），或直接给比例旋钮（vLLM rust bench 的 `--multi-turn-prefix-global-ratio`），比人工猜一个"前缀缓存开着就行"更可控；有条件时优先用真实生产 trace（SGLang 的 Mooncake trace，真实 `hash_ids`）而非人工合成分布。
+   - **长输入短输出**：复用真实长上下文 agent 任务的 prompt 分布，例如 SGLang FlexKV 用的 SWE-bench_Lite_oracle（真实观测 p50=7088、max=27961 token）,或 OpenVINO GenAI 自己 `test_kv_cache_eviction` 已经在用的 LongBench 子任务（`samsum`/`trec`/`qasper`）——后者的 ISL≫OSL 结构和评分函数可以直接复用，只需把评分函数换成工具调用任务终态判定。
+   - **多长算长**：六个系统里大多把"多长"当运行时可配置参数，没有统一的官方上限；唯一有硬编码数字的是 Ollama `agent/compactor.go`（`defaultCompactionContextWindowTokens=32768`，80% 阈值触发压缩，即约 26214 token）——但这是压缩触发点，不是能力上限。建议测试矩阵里显式加入"session 长度逼近模型 context window 上限时会发生什么"这一档，目前全行业没有人测过。
 2. **缓存命中率的真实验证**：不能只信任"配置开了前缀缓存"这个开关本身，要解析服务端真实日志/指标，确认 agentic 会话过程中缓存确实被命中——否则"任务成功率没掉"这个结论可能只是因为缓存压根没被命中（比如工具调用改变了 prompt 结构导致前缀失配）。
 3. **多会话场景下的正确性能判据**：单会话时代的四个惯用指标在多会话下会系统性说谎，必须换成对应的多会话版本：
 
@@ -105,8 +109,10 @@ OpenVINO GenAI 目前的独特优势和短板都很鲜明：`test_kv_cache_evict
 |---|---|---|---|
 | 吞吐 | 聚合吞吐（高并发会推高，但每个 Agent 都变慢了） | **per-user 吞吐**：N 个并发会话下单会话吞吐不低于阈值 | TensorRT-LLM `output_throughput_per_user_tok_s` |
 | 缓存命中率 | 请求加权/客户端近似估算 | **token 加权 + 分层拆解**（GPU/host/storage 命中对 TTFT 影响差一个数量级） | SGLang `cache_hit_rate_pct` + `device_/host_/storage_cached_tokens` |
-| 隔离性/公平性 | 完全不测 | P99/P50 时延比、被抢占/重算次数、会话间吞吐方差 | **全场空白**（vLLM 有 `num_preemptions` 指标但未进压测报告） |
+| 隔离性/公平性 | 完全不测 | P99/P50 时延比、被抢占/重算次数、会话间吞吐方差（三者具体含义及为何要一起看，见 [`agentic_test_design_proposal.md`](agentic_test_design_proposal.md) 3.7.1 节） | **全场空白**（vLLM 有 `num_preemptions` 指标但未进压测报告） |
 | 时延 | 全局均值（被早期轮次拉平） | **按轮次拆解** per-turn TTFT/TPOT/ITL/E2EL | vLLM Rust 版 `per_turn_metrics` |
+
+4. **多轮会话下的内存增长/泄漏验证**：这一层此前被判断为全行业空白，但重新检索后发现两个系统各自有半个正确实现，可以合并借鉴——**vLLM** `tests/models/multimodal/generation/test_memory_leak.py`：预热 2 轮 + 正式测量 16 轮，每轮重跑同一批请求，用 `gc.collect()` 后采样 GPU 显存和 CPU 峰值 RSS，断言预热后增长**零容忍**，已确认作为独立 CI job 运行；**局限是场景为多模态图像对话，不是多轮 agentic 会话**。**TensorRT-LLM** `tests/integration/defs/stress_test/stress_test.py`：`stress-test-with-accuracy` 模式在持续并发压力（`concurrency_list=[8,16,32,64,128,256]`，`stress_time` 180-300 秒可配置更长）前后各跑一次 GSM8K 精度评测比较是否稳定，每个模型配置显式声明 `memory_requirement`，已确认接入 L0 CI 及独立 QA 清单；**局限是压力场景为通用持续并发吞吐，不针对多轮会话累积，也未采样内存增长曲线本身**。建议把 vLLM 的"预热+多轮零容忍内存增长断言"方法论，和第 1 点的"真实驱动多轮+高前缀共享"负载形状结合，同时借鉴 TRT-LLM 的"压力前后精度对比"设计——这正是当前的一处具体空白，而不是无从下手。
 
 **为什么重要**：这是 OpenVINO GenAI 目前和 llama.cpp、Ollama 并列六者中最薄弱的一环——单机推理引擎的定位不代表可以完全不管"多个 agentic 会话同时打进来"这个场景，尤其 NPU/GPU 上部署多 Agent 应用是明确的产品方向。
 

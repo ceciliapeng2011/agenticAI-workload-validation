@@ -33,6 +33,7 @@
 | 性能指标独有亮点 | `moving_avg_ttft/tpot`（观测缓存填满引起的时延漂移） | 分层缓存 token 统计 | `output_throughput_per_user`（多会话下唯一正确的吞吐视角）、`acceptance_rate/length`（投机解码收益量化） | — | — | `ipot`（区分推理时延与端到端 TPOT）、`grammar_compile_time`（约束解码开销） |
 | 多 Agent **协作正确性**测试 | 无 | 无 | 有编排原语（`ParallelProcess`、`MCTSController`/`TOTController`），但测试用 `DummyTask`/mock worker | 无 | 无 | 无 |
 | 隔离性/公平性指标（一个会话是否拖累其他会话） | 无（有 `num_preemptions` Prometheus 指标但未进压测报告） | 无 | 无 | 无 | 无 | 无 |
+| 内存增长/泄漏压测 | **有**：`test_memory_leak.py`——预热2轮+measured 16轮，GPU/CPU增长零容忍断言，独立 CI job | 无 | **有**：`stress_test.py` 的 `stress-test-with-accuracy` 模式，持续并发压力前后对比 GSM8K 精度，接入 L0 CI | 无 | 无 | 无（`test_kv_cache_eviction` 测的是缓存*压缩比*，不是增长/泄漏） |
 | 精度评估方法论本身 | lm-eval-harness，38 配置，单轮 gsm8k/mmlu | lm_eval_configs，4 配置，单轮 gsm8k | 224 个测试，GSM8K/MMLU/JsonModeEval/CnnDailymail | 仅困惑度 + KL 散度，纯统计非任务型 | 无 | WWB：11 类评测器（文本/图像/视频/语音/多模态），任务类型覆盖面六者最广，但无 agentic 类型 |
 | 精度评估是否接入 CI | 是 | 是 | 是 | **否**（零命中，纯人工） | 无自身精度评估 | 是（WWB 矩阵化接入 `linux.yml`） |
 | MCP 协议原生支持 | 无 | 无 | 有（`tensorrt_llm.scaffolding`，编排层） | **有（推理服务器本体自带）** | 有（产品 Agent 层，`agent/tools`） | 无 |
