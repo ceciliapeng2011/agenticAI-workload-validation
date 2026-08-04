@@ -1,3 +1,17 @@
+# Agentic Workload 方法论笔记
+
+> **文档导航**（完整索引见 [README.md](README.md)）
+>
+> **调查报告**：[vLLM](vllm_agentic_evaluation_investigate.md) · [SGLang](sglang_agentic_evaluation_investigate.md) · [TensorRT-LLM](tensorrt_llm_agentic_evaluation_investigate.md) · [llama.cpp](llama_cpp_agentic_evaluation_investigate.md) · [Ollama](ollama_agentic_evaluation_investigate.md) · [OpenVINO GenAI](openvino_genai_agentic_evaluation_investigate.md)
+>
+> **横向分析**：[六系统横向对比](cross_comparison_agentic_evaluation.md) · [能力×严谨度矩阵](capability_x_systems_rigor_matrix.md) · [基准全景对比](benchmark_landscape_comparison.md) · [测试设计方案](agentic_test_design_proposal.md)
+>
+> **管理层报告 / 概念科普**：[OpenVINO 管理层报告](openvino_management_technical_report.md) · [Tool Calling/MCP 概念全景](tool_calling_mcp_primer.md) · [约束解码与 Parser 源码拆解](openvino_genai_structured_output_and_parser_impl.md)
+>
+> **方法论 / 早期产物**：**方法论笔记（本文档）** · [脚本3人工检查点记录](vllm_investigation.md)
+>
+> **审计脚本**：[详细说明](AUDIT_README.md) · [5分钟上手](QUICKSTART.md)
+
 一、Agentic AI Workload 的特点（从 Runtime / 系统角度，不是从 "agent 聪不聪明" 角度）
 普通 chat workload 是 "一问一答"，agentic workload 的本质区别在于一个任务 = 一串相互依赖的 LLM 调用，由此产生几个系统层面的独特形状：
 
@@ -52,12 +66,12 @@ BFCL/τ-bench 这类是**精度基准**—— 判定 "回答对不对"；
 最终定位关键注释：`Use the first turn only; skip multi-turn categories`。
 
 > 
-> 关键词搜索只能确认 “文本是否被提及”，阅读源码才能确认**实际运行行为**。
+> 关键词搜索只能确认 "文本是否被提及"，阅读源码才能确认**实际运行行为**。
 
 4. **自动化 CI 覆盖缺口证据挖掘**
 假设：开发团队自知测试缺口，通常会写在测试类文档注释 (docstring) 或 PR 描述。
 → 定向读取 `TestServingChatWithHarmony` 的文档字符串
-拿到维护者一手书面说明，属于强证据，强于单纯 “检索不到代码就下结论”。
+拿到维护者一手书面说明，属于强证据，强于单纯 "检索不到代码就下结论"。
 
 一句话总结方法论：
 先把 workload 特点转化成「该特性如果完整支持，代码实现应当具备什么形态」的可验证预期；
@@ -65,73 +79,6 @@ BFCL/τ-bench 这类是**精度基准**—— 判定 "回答对不对"；
 
 泛泛搜索 `agentic`、`multi-turn` 这类大词只能找到相关入口；想要判断**支持程度、CI 覆盖是否完备**，必须下沉到具体机制、参数、执行逻辑层面验证。
 
-
-## 一、Agentic AI Workload 的特点（从 Runtime / 系统角度，不是从 "agent 聪不聪明" 角度）
-普通 chat workload 是 "一问一答"，agentic workload 的本质区别在于一个任务 = 一串相互依赖的 LLM 调用，由此产生几个系统层面的独特形状：
-
-表格
-
-| 特点 | 具体表现 | 为什么 Runtime 要关心 |
-| --- | --- | --- |
-| 多轮、上下文累积增长 | Turn N 的输入 = 全部历史 + 新增内容，不是独立请求 | prompt 长度随轮次线性增长，KV cache 占用持续上升 |
-| 高前缀重复率 | 每一轮都重新发送 system prompt + 工具 schema + 之前所有轮次 | 这是 prefix caching /prefix sharing 存在的意义 —— 不复用就是纯浪费算力 |
-| 长输入、短输出 | 每轮通常是 "一大段历史 + 工具结果" 进去，只吐出一小段 thought/action | 和传统 chat 的 "输入输出都适中" 完全不同的 prefill/decode 比例 |
-| 调用间存在非计算的 "空档" | 等工具执行、等外部 API 返回 | 这段时间 KV cache 要不要保留、保留多久、会不会被驱逐，是 agentic 特有的调度问题 |
-| 依赖驱动的到达，不是泊松 | 下一次 LLM 调用必须等上一次工具执行完才发生 | 大多数压测工具默认泊松到达，这对 agentic 是错误的建模 |
-| 工具调用是输出的一部分，且要被解析 / 执行 | 输出不是自然语言，而是结构化的 function call | 需要约束解码 (grammar)、tool-call parser，精度不能只看 "像不像人话"，要看 "能不能被正确解析和执行" |
-| 多 Agent / 并发子任务 | 一个任务可能 fan-out 成多个子 agent 并行跑 | 跨请求的前缀共享 (不只是同一会话内) 变得重要 |
-| 正确性是 "整条轨迹" 的正确性，不是单次输出的正确性 | 单次回复语法正确 ≠ 任务最终完成 | 精度评估要看任务终态，不能只看单轮 exact match |
-
-这 8 条，就是我在读 vLLM 代码时一直在验证 "有没有被建模" 的清单 —— 你会发现上一份报告里几乎每个发现都对应其中一条（比如 "BFCL 被丢弃了多轮部分" 对应第 1 条，"tool\_use 测试关闭了 prefix caching" 对应第 2 条，"CI 用泊松到达" 对应第 5 条）。
-
-## 二、对应的基准测试（按上面这些特点分类，而不是按 "名气" 排序）
-
-表格
-
-| 基准 | 主要测什么特点 | 关键设计 |
-| --- | --- | --- |
-| BFCL(Berkeley Function Calling Leaderboard) | 第 6 条：工具调用输出的可解析性 / 正确性 | 分 single-turn /multi-turn/parallel 等 category；判定标准是 AST 匹配或真实执行结果匹配，不是文本相似度 |
-| τ-bench / τ²-bench | 第 7 条 + 第 8 条：多轮工具调用的任务终态正确性，以及 "重复跑 k 次是否稳定"(passᵏ) | 用数据库终态是否和标准答案一致来判分，而不是判断某一句话对不对 |
-| AgentBench / GAIA / SWE-bench | 第 8 条：长链路任务的最终完成度 | 任务通常需要几十次工具调用才能收尾，天然会暴露 "多轮误差累积" |
-| WebArena / OSWorld | 第 1+4 条：长上下文、真实环境反馈延迟 | 网页 / 系统状态截图或 DOM 树进入上下文，输入体积随步数暴涨 |
-| MLPerf Inference agentic/interactive（需核实版本） | 第 1、5、6 条的系统性能面 | 尝试把 "多轮工具调用" 标准化成一个可复现的性能测试场景，侧重性能而非精度测试 |
-
-这里有一个我在报告里反复强调的关键区分，再次说清楚：
-BFCL/τ-bench 这类是**精度基准**—— 判定 "回答对不对"；
-而 "这个 runtime 能不能把 BFCL 的负载扛住、扛得快不快" 是完全不同的**性能问题**。
-
-上一份 vLLM 调查报告最核心发现：vLLM 把 BFCL 拿来只做了后者（当作负载生成器测吞吐），没有做前者（没有利用 BFCL 判定工具调用正确性）。两件事极易混淆，后续调研任何推理 Runtime 都需要重点区分。
-
-## 三、为什么我这样检索代码 —— 关键词是怎么来的
-
-不是拍脑袋搜的，是先建立「特点 → 代码里应该长什么样 → 该搜什么词」映射链，再执行 grep。几个典型示例：
-
-1. **第 2 条：高前缀重复率 & prefix caching**
-假设：如果该特性被纳入精度测试，代码测试配置会存在前缀缓存开关参数。
-→ 不宽泛搜索 `prefix`，精准搜索 `--no-enable-prefix-caching`
-目标不是确认功能存在，而是验证：**精度测试是否在开启前缀缓存的环境下执行**。
-2. **第 6 条：工具调用输出校验**
-假设：评测工具调用正确性，代码必然存在模型输出 `tool_calls` 和标准答案对比逻辑。
-→ 全局检索 `vllm/benchmarks/*.py` 内 tool\_call 校验代码
-检索结果为空本身就是证据：性能压测链路完全不校验工具调用结果正确性。
-3. **第 1 条：多轮上下文处理（BFCL Dataset）**
-假设：支持多轮 Agent 负载，则 BFCL 加载器会完整使用数据集多轮对话结构。
-→ 不只搜索关键词 `multi-turn`，直接阅读 `BFCLDataset.sample()` 实现逻辑
-最终定位关键注释：`Use the first turn only; skip multi-turn categories`。
-
-> 
-> 关键词搜索只能确认 “文本是否被提及”，阅读源码才能确认**实际运行行为**。
-
-4. **自动化 CI 覆盖缺口证据挖掘**
-假设：开发团队自知测试缺口，通常会写在测试类文档注释 (docstring) 或 PR 描述。
-→ 定向读取 `TestServingChatWithHarmony` 的文档字符串
-拿到维护者一手书面说明，属于强证据，强于单纯 “检索不到代码就下结论”。
-
-一句话总结方法论：
-先把 workload 特点转化成「该特性如果完整支持，代码实现应当具备什么形态」的可验证预期；
-再基于预期定向检索 / 阅读源码：搜到则验证假设、检索为空本身是负面发现、阅读源码实现判断功能是否完整落地。
-
-泛泛搜索 `agentic`、`multi-turn` 这类大词只能找到相关入口；想要判断**支持程度、CI 覆盖是否完备**，必须下沉到具体机制、参数、执行逻辑层面验证。
 
 ---
 

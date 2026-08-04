@@ -1,5 +1,7 @@
 # agenticAI
 
+> 本文件是完整导航索引；下方各章节均可直接跳转。为方便从任意文档反向跳回，其余每份文档开头也附有一张精简版导航链接表。
+
 调查主题：**目前支持 Agentic AI Workload 的底层 Runtime Framework（vLLM、SGLang、TensorRT-LLM、llama.cpp、Ollama、OpenVINO GenAI），它们各自是怎么测试/评估自己对这类负载的性能和精度的？**
 
 调查方法：不依赖关键词命中数量或官方文档/博客的自述，逐个打开源码（CI 配置、benchmark harness、测试用例）读实现逻辑，验证"某个能力是不是真的存在、真的被测了、真的接入了日常 CI"，而不是"提到了这个词"。

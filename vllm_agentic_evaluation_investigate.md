@@ -1,5 +1,17 @@
 # vLLM Agentic Workload 性能 / 精度评估方法 — 调查报告
 
+> **文档导航**（完整索引见 [README.md](README.md)）
+>
+> **调查报告**：**vLLM** · [SGLang](sglang_agentic_evaluation_investigate.md) · [TensorRT-LLM](tensorrt_llm_agentic_evaluation_investigate.md) · [llama.cpp](llama_cpp_agentic_evaluation_investigate.md) · [Ollama](ollama_agentic_evaluation_investigate.md) · [OpenVINO GenAI](openvino_genai_agentic_evaluation_investigate.md)
+>
+> **横向分析**：[六系统横向对比](cross_comparison_agentic_evaluation.md) · [能力×严谨度矩阵](capability_x_systems_rigor_matrix.md) · [基准全景对比](benchmark_landscape_comparison.md) · [测试设计方案](agentic_test_design_proposal.md)
+>
+> **管理层报告 / 概念科普**：[OpenVINO 管理层报告](openvino_management_technical_report.md) · [Tool Calling/MCP 概念全景](tool_calling_mcp_primer.md) · [约束解码与 Parser 源码拆解](openvino_genai_structured_output_and_parser_impl.md)
+>
+> **方法论 / 早期产物**：[方法论笔记](agentic_workload_research.md) · [脚本3人工检查点记录](vllm_investigation.md)
+>
+> **审计脚本**：[详细说明](AUDIT_README.md) · [5分钟上手](QUICKSTART.md)
+
 > 
 > 仓库路径：`~/agenticAI/vllm`
 > 说明：当前代码检出版本晚于前期 1/2 批次脚本执行版本，部分 CI 文件路径已重组

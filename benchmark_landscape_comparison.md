@@ -1,5 +1,17 @@
 # Agentic AI Workload 基准测试详解与对比：MMLU / MT-Bench / MTR-Bench / BFCL / τ-bench
 
+> **文档导航**（完整索引见 [README.md](README.md)）
+>
+> **调查报告**：[vLLM](vllm_agentic_evaluation_investigate.md) · [SGLang](sglang_agentic_evaluation_investigate.md) · [TensorRT-LLM](tensorrt_llm_agentic_evaluation_investigate.md) · [llama.cpp](llama_cpp_agentic_evaluation_investigate.md) · [Ollama](ollama_agentic_evaluation_investigate.md) · [OpenVINO GenAI](openvino_genai_agentic_evaluation_investigate.md)
+>
+> **横向分析**：[六系统横向对比](cross_comparison_agentic_evaluation.md) · [能力×严谨度矩阵](capability_x_systems_rigor_matrix.md) · **基准全景对比** · [测试设计方案](agentic_test_design_proposal.md)
+>
+> **管理层报告 / 概念科普**：[OpenVINO 管理层报告](openvino_management_technical_report.md) · [Tool Calling/MCP 概念全景](tool_calling_mcp_primer.md) · [约束解码与 Parser 源码拆解](openvino_genai_structured_output_and_parser_impl.md)
+>
+> **方法论 / 早期产物**：[方法论笔记](agentic_workload_research.md) · [脚本3人工检查点记录](vllm_investigation.md)
+>
+> **审计脚本**：[详细说明](AUDIT_README.md) · [5分钟上手](QUICKSTART.md)
+
 > 
 > 承接 `capability_x_systems_rigor_matrix.md` 的横轴（能力金字塔）——本文档把横轴上简化成一个箭头的几个节点，逐个展开成详细档案，并补充横轴上原本缺失的两级（MTR-Bench、BFCL 的完整版本演进史），最后回答一个和前面所有调查一脉相承的问题：**这些基准测试有没有一个考虑过"系统/Runtime 层优化是否影响这些能力"？**
 

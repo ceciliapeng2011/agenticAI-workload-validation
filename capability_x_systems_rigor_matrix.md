@@ -1,5 +1,17 @@
 # 评测体系二维坐标图：能力金字塔 × 系统严谨度，六个 Runtime 在哪个格子里，τ-bench 方法论该嫁接到哪
 
+> **文档导航**（完整索引见 [README.md](README.md)）
+>
+> **调查报告**：[vLLM](vllm_agentic_evaluation_investigate.md) · [SGLang](sglang_agentic_evaluation_investigate.md) · [TensorRT-LLM](tensorrt_llm_agentic_evaluation_investigate.md) · [llama.cpp](llama_cpp_agentic_evaluation_investigate.md) · [Ollama](ollama_agentic_evaluation_investigate.md) · [OpenVINO GenAI](openvino_genai_agentic_evaluation_investigate.md)
+>
+> **横向分析**：[六系统横向对比](cross_comparison_agentic_evaluation.md) · **能力×严谨度矩阵** · [基准全景对比](benchmark_landscape_comparison.md) · [测试设计方案](agentic_test_design_proposal.md)
+>
+> **管理层报告 / 概念科普**：[OpenVINO 管理层报告](openvino_management_technical_report.md) · [Tool Calling/MCP 概念全景](tool_calling_mcp_primer.md) · [约束解码与 Parser 源码拆解](openvino_genai_structured_output_and_parser_impl.md)
+>
+> **方法论 / 早期产物**：[方法论笔记](agentic_workload_research.md) · [脚本3人工检查点记录](vllm_investigation.md)
+>
+> **审计脚本**：[详细说明](AUDIT_README.md) · [5分钟上手](QUICKSTART.md)
+
 > 
 > 承接：`agentic_workload_research.md`（方法论笔记）、六份 `*_agentic_evaluation_investigate.md`（实测证据）、`cross_comparison_agentic_evaluation.md`（横向对比）、`agentic_test_design_proposal.md`（测试设计方案）
 > 本文档做的事：把"MMLU→MT-Bench→Tool-Calling→SWE-bench"这条能力演进链，和六次调查发现的"系统严谨度普遍卡在很低的档位"这件事，画成一张二维图，再把六个系统实际摆进对应的格子，最后定位 τ-bench 方法论该嫁接在哪个坐标上。

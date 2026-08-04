@@ -1,5 +1,17 @@
 # 面向管理层的技术报告：OpenVINO（含 OpenVINO GenAI）应如何构建 Agentic AI Workload 测试体系
 
+> **文档导航**（完整索引见 [README.md](README.md)）
+>
+> **调查报告**：[vLLM](vllm_agentic_evaluation_investigate.md) · [SGLang](sglang_agentic_evaluation_investigate.md) · [TensorRT-LLM](tensorrt_llm_agentic_evaluation_investigate.md) · [llama.cpp](llama_cpp_agentic_evaluation_investigate.md) · [Ollama](ollama_agentic_evaluation_investigate.md) · [OpenVINO GenAI](openvino_genai_agentic_evaluation_investigate.md)
+>
+> **横向分析**：[六系统横向对比](cross_comparison_agentic_evaluation.md) · [能力×严谨度矩阵](capability_x_systems_rigor_matrix.md) · [基准全景对比](benchmark_landscape_comparison.md) · [测试设计方案](agentic_test_design_proposal.md)
+>
+> **管理层报告 / 概念科普**：**OpenVINO 管理层报告** · [Tool Calling/MCP 概念全景](tool_calling_mcp_primer.md) · [约束解码与 Parser 源码拆解](openvino_genai_structured_output_and_parser_impl.md)
+>
+> **方法论 / 早期产物**：[方法论笔记](agentic_workload_research.md) · [脚本3人工检查点记录](vllm_investigation.md)
+>
+> **审计脚本**：[详细说明](AUDIT_README.md) · [5分钟上手](QUICKSTART.md)
+
 > 提交对象：OpenVINO / OpenVINO GenAI 管理层
 > 依据材料：对 vLLM、SGLang、TensorRT-LLM、llama.cpp、Ollama、OpenVINO GenAI 六个推理引擎的独立源码级调查（`*_agentic_evaluation_investigate.md`），及在此基础上产出的横向对比、测试设计方案、能力×严谨度矩阵、基准测试详解四份分析文档
 > 调查范围声明：本报告的实测证据全部来自 `~/openvino.genai` 仓库，**不包含 OVMS（OpenVINO Model Server）**；OVMS 若有独立的 serving 层测试资产，需另行盘点，本报告的现状评估和结论不覆盖它。

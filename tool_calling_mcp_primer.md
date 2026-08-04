@@ -1,5 +1,17 @@
 # Tool Calling / Function Calling / MCP 关系全景：给刚接触 Agentic 系统的工程师
 
+> **文档导航**（完整索引见 [README.md](README.md)）
+>
+> **调查报告**：[vLLM](vllm_agentic_evaluation_investigate.md) · [SGLang](sglang_agentic_evaluation_investigate.md) · [TensorRT-LLM](tensorrt_llm_agentic_evaluation_investigate.md) · [llama.cpp](llama_cpp_agentic_evaluation_investigate.md) · [Ollama](ollama_agentic_evaluation_investigate.md) · [OpenVINO GenAI](openvino_genai_agentic_evaluation_investigate.md)
+>
+> **横向分析**：[六系统横向对比](cross_comparison_agentic_evaluation.md) · [能力×严谨度矩阵](capability_x_systems_rigor_matrix.md) · [基准全景对比](benchmark_landscape_comparison.md) · [测试设计方案](agentic_test_design_proposal.md)
+>
+> **管理层报告 / 概念科普**：[OpenVINO 管理层报告](openvino_management_technical_report.md) · **Tool Calling/MCP 概念全景** · [约束解码与 Parser 源码拆解](openvino_genai_structured_output_and_parser_impl.md)
+>
+> **方法论 / 早期产物**：[方法论笔记](agentic_workload_research.md) · [脚本3人工检查点记录](vllm_investigation.md)
+>
+> **审计脚本**：[详细说明](AUDIT_README.md) · [5分钟上手](QUICKSTART.md)
+
 > 
 > 背景：这份文档回答一个新手最容易卡住的问题——"工具 schema、function call、tool call、OpenAI Chat Completions API、MCP server，这些词到底是什么关系？"
 > 定位：这是一份**概念地图**，不是调查报告——本系列其余文档（`*_agentic_evaluation_investigate.md`、`agentic_test_design_proposal.md`）里出现的具体代码（`VLLMParserWrapper`、`real_tool_impl`、`--mcp-servers-json` 等）都会在这里被安放到对应的位置上，方便对照理解。

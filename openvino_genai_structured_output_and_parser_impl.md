@@ -1,5 +1,17 @@
 # OpenVINO GenAI 源码拆解：约束解码（Structured Output）与 Tool-Call Parser 是怎么实现的
 
+> **文档导航**（完整索引见 [README.md](README.md)）
+>
+> **调查报告**：[vLLM](vllm_agentic_evaluation_investigate.md) · [SGLang](sglang_agentic_evaluation_investigate.md) · [TensorRT-LLM](tensorrt_llm_agentic_evaluation_investigate.md) · [llama.cpp](llama_cpp_agentic_evaluation_investigate.md) · [Ollama](ollama_agentic_evaluation_investigate.md) · [OpenVINO GenAI](openvino_genai_agentic_evaluation_investigate.md)
+>
+> **横向分析**：[六系统横向对比](cross_comparison_agentic_evaluation.md) · [能力×严谨度矩阵](capability_x_systems_rigor_matrix.md) · [基准全景对比](benchmark_landscape_comparison.md) · [测试设计方案](agentic_test_design_proposal.md)
+>
+> **管理层报告 / 概念科普**：[OpenVINO 管理层报告](openvino_management_technical_report.md) · [Tool Calling/MCP 概念全景](tool_calling_mcp_primer.md) · **约束解码与 Parser 源码拆解**
+>
+> **方法论 / 早期产物**：[方法论笔记](agentic_workload_research.md) · [脚本3人工检查点记录](vllm_investigation.md)
+>
+> **审计脚本**：[详细说明](AUDIT_README.md) · [5分钟上手](QUICKSTART.md)
+
 > 
 > 承接：[tool_calling_mcp_primer.md](tool_calling_mcp_primer.md) 第 4 节提到的两块 Runtime 内部机制——"约束解码（保证语法合法）"和"Tool-call Parser（原始输出→结构化）"。本文档打开 `~/openvino.genai` 源码，逐一说明这两套子系统各自怎么实现、代码在哪、怎么被顶层管线调用，并在最后指出一个容易被忽略的架构事实：**这两套子系统目前是相互独立、没有自动关联的**。
 > 调查方法：与本系列其余文档一致——不满足于"存在这个功能"，要打开代码确认具体机制。
