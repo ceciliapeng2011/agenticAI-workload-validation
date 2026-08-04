@@ -89,6 +89,81 @@ POST /v1/chat/completions
 
 **这份协议只规定"长什么样"，不规定"谁负责什么"**——这正是新手最容易搞混的地方，第 8 节会专门画一张边界图说清楚。
 
+## 3.5 承上启下：从这份 JSON 请求，到模型真正能读的东西，中间还有一步没讲
+
+第 1 节说过，模型只会预测下一个 token——但第 3 节的请求体是一段 **JSON**（`messages` 数组 + `tools` 数组）。模型不认识 JSON 结构，只认识一串扁平的文本/token。中间这一步转换，叫 **Chat Template 渲染**，是新手最容易忽略、但决定了"工具调用能不能被模型正确理解"的关键一环。
+
+### 3.5.1 每个模型自带一份"怎么把 messages/tools 拍平成文本"的模板
+
+这份模板通常是一段 **Jinja2 模板字符串**，跟着模型一起发布（HuggingFace 生态里存在 `tokenizer_config.json` 的 `chat_template` 字段）。它规定了"user 消息前面加什么标记、assistant 消息前面加什么标记、工具定义要不要塞进 system 段、塞成什么样子"。**不同模型家族的模板长得完全不一样**——这也是第 4 节讲到"每个模型家族的自定义标记都不一样"背后真正的原因：输入侧怎么渲染、输出侧就长什么样，两者是同一份模板/同一次训练对齐出来的。
+
+以 OpenVINO GenAI 为例（[`tokenizer.hpp:250-268`](../openvino.genai/src/cpp/include/openvino/genai/tokenizer.hpp)）：
+
+```cpp
+/**
+ * @brief Applies a chat template to format chat history into a prompt string.
+ * For example, for Qwen family models, the prompt "1+1=" would be transformed into
+ * <|im_start|>user\n1+1=<|im_end|>\n<|im_start|>assistant\n.
+ */
+std::string apply_chat_template(
+    const ChatHistory& history,
+    bool add_generation_prompt,
+    const std::string& chat_template = {},
+    const std::optional<JsonContainer>& tools = std::nullopt,   // ← tools 从这里传进模板
+    const std::optional<JsonContainer>& extra_context = std::nullopt
+) const;
+```
+
+内部实现（[`tokenizer_impl.cpp:811-857`](../openvino.genai/src/cpp/src/tokenizer/tokenizer_impl.cpp)）用了 **minja**——一个轻量级 C++ Jinja2 引擎实现——去真正渲染这份模板：
+
+```cpp
+auto minja_template = get_cached_minja_chat_template(chat_tpl);
+minja::chat_template_inputs minja_inputs;
+minja_inputs.messages = history.get_messages();
+if (!resolved_tools.empty()) {
+    minja_inputs.tools = resolved_tools;   // tools 作为模板变量，模板自己决定怎么把它渲染进文本
+}
+minja_inputs.add_generation_prompt = add_generation_prompt;
+result = minja_template->apply(minja_inputs);   // 渲染结果是一段扁平字符串，不再是 JSON
+```
+
+**关键点：`tools` 这个 JSON 数组，怎么被文本化、塞进 prompt 的哪个位置（system 段？专门的 `<tools>` 标签？），完全由模型自带的这份 Jinja 模板决定，不是一个跨模型统一的规则**——这正是"事实标准"（第 3 节）和"每个模型自己的输入/输出方言"（第 4 节）之间的分界线：`tools`/`tool_calls` 的**字段名**是跨模型统一的（Chat Completions 协议），但这些字段**渲染成什么文本、模型输出成什么文本**，是每个模型自己的事。
+
+### 3.5.2 渲染完的文本，还要再走一步分词（tokenize），才是模型真正的输入
+
+`apply_chat_template` 的返回值是**一段字符串**，还不是模型的输入——模型的输入必须是 **token id 序列**。这最后一步是普通的分词器编码，在 OpenVINO GenAI 里紧跟在模板渲染之后（[`llm/pipeline_stateful.cpp:170-173`](../openvino.genai/src/cpp/src/llm/pipeline_stateful.cpp)）：
+
+```cpp
+auto new_templated_chat_history = m_tokenizer.apply_chat_template(m_history, add_generation_prompt);
+// ↑ messages+tools(JSON) → 扁平字符串（模板渲染）
+auto new_chat_tokens = m_tokenizer.encode(new_templated_chat_history, ov::genai::add_special_tokens(false));
+// ↑ 扁平字符串 → token id 序列（分词），这才是真正喂进模型 forward pass 的东西
+```
+
+代码里这两步分别计时（`chat_template_duration_us` 记模板渲染耗时，紧接着的 `tokenization_start_time` 记分词耗时）——说明这在架构上明确是两个独立阶段，不是一步到位。
+
+### 3.5.3 完整补全后的链路
+
+```
+{ messages: [...], tools: [...] }   ← 第 3 节：Chat Completions 协议里的 JSON 请求体
+              │
+              ▼
+   Chat Template 渲染（Jinja2，如 OpenVINO GenAI 的 minja）
+   —— messages 和 tools 按"这个模型专属的格式"被拍平成文本
+   —— tools 塞进 prompt 的哪里、长什么样，模板说了算，不同模型家族完全不同
+              │
+              ▼
+   一段扁平字符串（含模型专属特殊标记，如 <|im_start|>user...）
+              │
+              ▼
+        Tokenizer.encode()  ← 分词
+              │
+              ▼
+        token id 序列 —— 这才是模型 forward pass 真正吃进去的东西
+```
+
+这一步补全了第 1 节留下的伏笔："模型本身只会吐文本"——现在可以说得更精确：**模型连"文本"都不直接处理，它处理的是 token id；而"文本"本身也不是 API 请求的原始 JSON，是 JSON 经过模型专属模板渲染之后的产物**。理解了这一层，就能理解为什么"约束解码"（第 4 节要讲的内容）只能作用在 token 层面——它屏蔽的是词表里的 token id，不是 JSON 字段。
+
 ## 4. 第三层：从"模型原始输出"到"响应里那个干净的 tool_calls 字段"，中间发生了什么
 
 第 1 节看到的模型原始输出是一段夹杂了普通文本和某种自定义标记的字符串（`<tool_call>{"name":...}</tool_call>`，或者 Llama3 家族用别的写法，Hermes 家族又用另一种写法——**每个模型家族的"自定义标记"长得都不一样**）。要把这段原始文本，变成第 3 节那种干净的、跨模型统一的 `tool_calls` JSON 字段，Runtime 内部要做两件事：
